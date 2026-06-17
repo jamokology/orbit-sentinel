@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Orbit Sentinel</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #161b22;
+      --surface2:  #21262d;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --high:      #E53935;
+      --mid:       #FB8C00;
+      --low:       #1E88E5;
+      --green:     #3fb950;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex;
+      height: 100dvh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 270px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 100;
+      transition: transform 0.25s ease;
+    }
+    .sidebar-inner { padding: 20px 18px; display: flex; flex-direction: column; gap: 18px; }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      line-height: 1.0;
+      color: var(--text);
+    }
+    .subtitle {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .caption {
+      font-size: 0.75rem;
+      color: var(--accent);
+      margin-top: 3px;
+    }
+
+    /* ── Map ── */
+    #map {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+    }
+
+    /* ── Mobile filter bar ── */
+    .filter-bar {
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .filter-bar-row { display: flex; align-items: center; gap: 14px; }
+    .filter-bar label { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+    .filter-bar input[type=range] { flex: 1; }
+    .filter-bar .badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 0.82rem;
+      color: var(--accent);
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    /* ── Slider ── */
+    .slider-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .slider-val { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg);
+    }
+
+    /* ── Legend ── */
+    .legend { display: flex; flex-direction: column; gap: 7px; }
+    .legend-item { display: flex; align-items: center; gap: 9px; font-size: 0.83rem; color: var(--text); }
+    .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Metric card ── */
+    .metric-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+    .metric-label { font-size: 0.73rem; color: var(--muted); margin-bottom: 4px; }
+    .metric-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+
+    /* ── Status ── */
+    .status { display: flex; flex-direction: column; gap: 4px; }
+    .status-dot { color: var(--green); font-size: 0.82rem; }
+    .status-date { color: var(--muted); font-size: 0.75rem; }
+
+    /* ── Lang button ── */
+    .btn-lang {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-lang:hover { background: #2d333b; }
+
+    /* ── Menu button (mobile) ── */
+    .btn-menu {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      width: 42px; height: 42px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid var(--border); }
+
+    /* ── Table drawer ── */
+    .table-drawer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      flex-shrink: 0;
+    }
+    .table-drawer.open { max-height: 220px; overflow-y: auto; }
+    .table-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--muted);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .table-toggle:hover { color: var(--text); }
+    .table-toggle .chevron { transition: transform 0.25s; }
+    .table-toggle.open .chevron { transform: rotate(180deg); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    thead th {
+      position: sticky; top: 0;
+      background: var(--surface2);
+      color: var(--muted);
+      font-weight: 500;
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td { padding: 7px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tbody tr:hover td { background: var(--surface2); }
+
+    /* ── Leaflet popup override ── */
+    .leaflet-popup-content-wrapper {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-popup-tip { background: var(--surface) !important; }
+    .leaflet-popup-content { margin: 12px 14px !important; min-width: 180px; }
+    .popup-conf { font-size: 1.1rem; font-weight: 700; }
+    .popup-row { font-size: 0.82rem; color: var(--muted); margin-top: 6px; line-height: 1.7; }
+    .popup-divider { border-top: 1px solid var(--border); margin: 8px 0; }
+
+    /* ── Overlay (mobile sidebar) ── */
+    .overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 99;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 700px) {
+      .sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        transform: translateX(-100%);
+        z-index: 200;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .overlay.open { display: block; }
+      .btn-menu { display: flex; }
+      body, html { overflow: hidden; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+
+      <button class="btn-lang" onclick="toggleLang()" id="btn-lang-sb">🇬🇧 English</button>
+
+      <hr>
+
+      <div class="slider-wrap">
+        <div class="section-label" data-i18n="filter_header">Filtros</div>
+        <div class="slider-val"><span id="sb-conf-val">50</span>%</div>
+        <input type="range" id="sb-slider" min="0" max="100" value="50" step="5"
+               oninput="syncSlider('sb')">
+      </div>
+
+      <hr>
+
+      <div>
+        <div class="section-label" data-i18n="legend_title">Nivel de confianza</div>
+        <div class="legend" style="margin-top:8px">
+          <div class="legend-item"><span class="dot" style="background:var(--high)"></span><span data-i18n="legend_high">Alta ≥ 85%</span></div>
+          <div class="legend-item"><span class="dot" style="background:var(--mid)"></span><span data-i18n="legend_mid">Media 70–84%</span></div>
+          <div class="legend-item"><span class="dot" style="background:var(--low)"></span><span data-i18n="legend_low">Baja &lt; 70%</span></div>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="metric-card">
+        <div class="metric-label" data-i18n="metric_label">Detecciones visibles</div>
+        <div class="metric-value" id="sb-metric">— / —</div>
+      </div>
+
+      <hr>
+
+      <div class="status">
+        <div class="section-label" data-i18n="data_status">Estado</div>
+        <div class="status-dot">● <span data-i18n="status_demo">Demo — datos simulados</span></div>
+        <div class="status-date"><span data-i18n="last_update">Último lote</span>: 2025-03-19</div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-row">
+        <div>
+          <div class="title">🛰️ Orbit Sentinel</div>
+          <div class="subtitle" data-i18n="subtitle">Detección de pistas clandestinas · Perú</div>
+          <div class="caption" data-i18n="caption">Resultados del análisis por IA de imágenes satelitales</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-shrink:0">
+          <button class="btn-lang" onclick="toggleLang()" id="btn-lang-top">🇬🇧 English</button>
+          <button class="btn-menu" id="btn-menu" onclick="openSidebar()">☰</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile filter bar -->
+    <div class="filter-bar">
+      <div class="filter-bar-row">
+        <label data-i18n="slider_label">Confianza mínima (%)</label>
+        <input type="range" id="main-slider" min="0" max="100" value="50" step="5"
+               oninput="syncSlider('main')">
+        <div class="badge" id="main-conf-val">50%</div>
+        <div class="badge" id="main-metric">— / —</div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Table toggle -->
+    <div class="table-toggle" id="table-toggle" onclick="toggleTable()">
+      <span>📋</span>
+      <span data-i18n="table_expander">Lista de detecciones</span>
+      <span style="margin-left:auto" class="chevron">▲</span>
+    </div>
+
+    <!-- Detection table -->
+    <div class="table-drawer" id="table-drawer">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="col_lat">Latitud</th>
+            <th data-i18n="col_lon">Longitud</th>
+            <th data-i18n="col_conf">Confianza</th>
+            <th data-i18n="col_date">Fecha de detección</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ── i18n ──────────────────────────────────────────────────────────────────
+const TEXTS = {
+  es: {
+    filter_header:  "Filtros",
+    slider_label:   "Confianza mínima (%)",
+    legend_title:   "Nivel de confianza",
+    legend_high:    "Alta ≥ 85%",
+    legend_mid:     "Media 70–84%",
+    legend_low:     "Baja < 70%",
+    metric_label:   "Detecciones visibles",
+    table_expander: "Lista de detecciones",
+    col_lat:        "Latitud",
+    col_lon:        "Longitud",
+    col_conf:       "Confianza",
+    col_date:       "Fecha de detección",
+    popup_conf:     "Confianza",
+    popup_date:     "Detectado",
+    popup_coord:    "Coord.",
+    lang_toggle:    "🇬🇧 English",
+    last_update:    "Último lote",
+    data_status:    "Estado",
+    status_demo:    "Demo — datos simulados",
+    subtitle:       "Detección de pistas clandestinas · Perú",
+    caption:        "Resultados del análisis por IA de imágenes satelitales",
+  },
+  en: {
+    filter_header:  "Filters",
+    slider_label:   "Minimum confidence (%)",
+    legend_title:   "Confidence level",
+    legend_high:    "High ≥ 85%",
+    legend_mid:     "Medium 70–84%",
+    legend_low:     "Low < 70%",
+    metric_label:   "Visible detections",
+    table_expander: "Detection list",
+    col_lat:        "Latitude",
+    col_lon:        "Longitude",
+    col_conf:       "Confidence",
+    col_date:       "Detected at",
+    popup_conf:     "Confidence",
+    popup_date:     "Detected",
+    popup_coord:    "Coord.",
+    lang_toggle:    "🇪🇸 Español",
+    last_update:    "Last batch",
+    data_status:    "Status",
+    status_demo:    "Demo — simulated data",
+    subtitle:       "Clandestine airstrip detection · Peru",
+    caption:        "AI satellite imagery analysis results",
+  },
+};
+
+let lang = "es";
+
+function applyLang() {
+  const t = TEXTS[lang];
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+  document.getElementById("btn-lang-sb").textContent  = t.lang_toggle;
+  document.getElementById("btn-lang-top").textContent = t.lang_toggle;
+  document.documentElement.lang = lang;
+  // refresh markers (popup text changes)
+  renderMarkers();
+}
+
+function toggleLang() {
+  lang = lang === "es" ? "en" : "es";
+  applyLang();
+}
+
+// ── Detection data ────────────────────────────────────────────────────────
+const DETECTIONS = [
+  { lat: -3.7491,  lon: -73.2538, conf: 0.91, date: "2025-03-15 08:22" },
+  { lat: -5.1843,  lon: -75.0152, conf: 0.84, date: "2025-03-15 08:45" },
+  { lat: -4.5621,  lon: -74.1834, conf: 0.72, date: "2025-03-15 09:10" },
+  { lat: -6.3217,  lon: -76.5409, conf: 0.63, date: "2025-03-15 09:33" },
+  { lat: -7.1562,  lon: -75.8823, conf: 0.55, date: "2025-03-15 09:55" },
+  { lat: -3.2984,  lon: -72.6741, conf: 0.88, date: "2025-03-16 07:18" },
+  { lat: -8.8043,  lon: -74.9215, conf: 0.77, date: "2025-03-16 08:02" },
+  { lat: -13.5317, lon: -72.8818, conf: 0.69, date: "2025-03-17 10:05" },
+  { lat: -11.2451, lon: -75.3394, conf: 0.82, date: "2025-03-17 10:30" },
+  { lat: -14.0672, lon: -73.4129, conf: 0.58, date: "2025-03-17 11:00" },
+  { lat: -12.5934, lon: -70.0817, conf: 0.95, date: "2025-03-18 06:45" },
+  { lat: -11.8763, lon: -71.3452, conf: 0.87, date: "2025-03-18 07:20" },
+  { lat: -13.1289, lon: -69.6543, conf: 0.74, date: "2025-03-18 07:55" },
+  { lat: -0.1834,  lon: -75.8712, conf: 0.61, date: "2025-03-19 09:00" },
+  { lat: -1.5423,  lon: -77.1234, conf: 0.79, date: "2025-03-19 09:40" },
+];
+
+function tierColor(conf) {
+  if (conf >= 0.85) return "#E53935";
+  if (conf >= 0.70) return "#FB8C00";
+  return "#1E88E5";
+}
+
+// ── Map ───────────────────────────────────────────────────────────────────
+const map = L.map("map", { zoomControl: true, tap: true }).setView([-9.19, -75.0], 6);
+
+L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  attribution: '© <a href="https://carto.com">CARTO</a>',
+  subdomains: "abcd",
+  maxZoom: 19,
+}).addTo(map);
+
+let markers = [];
+
+function renderMarkers() {
+  const t = TEXTS[lang];
+  const minConf = parseInt(document.getElementById("main-slider").value) / 100;
+  const filtered = DETECTIONS.filter(d => d.conf >= minConf);
+
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  filtered.forEach(d => {
+    const color = tierColor(d.conf);
+    const popup = `
+      <div class="popup-conf" style="color:${color}">${(d.conf*100).toFixed(1)}%</div>
+      <div class="popup-row">
+        <div class="popup-divider"></div>
+        📅 ${t.popup_date}: ${d.date}<br>
+        📍 ${t.popup_coord}: ${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}
+      </div>`;
+    const m = L.circleMarker([d.lat, d.lon], {
+      radius: 10,
+      color,
+      weight: 2,
+      fillColor: color,
+      fillOpacity: 0.75,
+    }).bindPopup(popup).bindTooltip(`${(d.conf*100).toFixed(1)}%`);
+    m.addTo(map);
+    markers.push(m);
+  });
+
+  const count = `${filtered.length} / ${DETECTIONS.length}`;
+  document.getElementById("sb-metric").textContent   = count;
+  document.getElementById("main-metric").textContent = count;
+
+  renderTable(filtered, t);
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────
+function renderTable(filtered, t) {
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = filtered.map(d => `
+    <tr>
+      <td>${d.lat.toFixed(4)}</td>
+      <td>${d.lon.toFixed(4)}</td>
+      <td style="color:${tierColor(d.conf)};font-weight:600">${(d.conf*100).toFixed(1)}%</td>
+      <td>${d.date}</td>
+    </tr>`).join("");
+
+  // update header text
+  document.querySelectorAll("thead th[data-i18n]").forEach(th => {
+    const key = th.getAttribute("data-i18n");
+    if (t[key]) th.textContent = t[key];
+  });
+}
+
+// ── Slider sync ───────────────────────────────────────────────────────────
+function syncSlider(source) {
+  const val = document.getElementById(source === "sb" ? "sb-slider" : "main-slider").value;
+  document.getElementById("sb-slider").value    = val;
+  document.getElementById("main-slider").value  = val;
+  document.getElementById("sb-conf-val").textContent   = val;
+  document.getElementById("main-conf-val").textContent = val + "%";
+  renderMarkers();
+}
+
+// ── Table drawer ──────────────────────────────────────────────────────────
+function toggleTable() {
+  const drawer  = document.getElementById("table-drawer");
+  const toggle  = document.getElementById("table-toggle");
+  drawer.classList.toggle("open");
+  toggle.classList.toggle("open");
+  setTimeout(() => map.invalidateSize(), 310);
+}
+
+// ── Sidebar (mobile) ──────────────────────────────────────────────────────
+function openSidebar() {
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("overlay").classList.add("open");
+}
+function closeSidebar() {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("overlay").classList.remove("open");
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.getElementById("sb-conf-val").textContent   = "50";
+document.getElementById("main-conf-val").textContent = "50%";
+renderMarkers();
+</script>
+</body>
+</html>
