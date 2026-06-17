@@ -105,12 +105,19 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&display=swap');
 
-/* ── Hide Streamlit chrome ── */
-footer { visibility: hidden; }
-[data-testid="stToolbar"] { display: none; }
-[data-testid="stDecoration"] { display: none; }
-[data-testid="stStatusWidget"] { display: none; }
-[data-testid="stAppDeployButton"] { display: none; }
+/* ── Hide Streamlit chrome (keep top menu) ── */
+footer, footer * { visibility: hidden !important; height: 0 !important; }
+[data-testid="stToolbar"]        { display: none !important; }
+[data-testid="stDecoration"]     { display: none !important; }
+[data-testid="stStatusWidget"]   { display: none !important; }
+[data-testid="stAppDeployButton"]{ display: none !important; }
+/* bottom-right badge on all screen sizes */
+.viewerBadge_container__r5tak,
+.viewerBadge_link__qRIco,
+[class*="viewerBadge"]           { display: none !important; }
+/* bottom bar that appears on mobile */
+[data-testid="stBottom"],
+[data-testid="stBottomBlockContainer"] { display: none !important; }
 
 /* ── Base ── */
 [data-testid="stAppViewContainer"] { background: #0f1117; }
@@ -139,11 +146,11 @@ footer { visibility: hidden; }
 .orbit-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
     color: #e6edf3;
-    font-size: clamp(2rem, 7vw, 3.2rem);
+    font-size: clamp(3rem, 11vw, 5.5rem);
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     margin: 0;
-    line-height: 1.1;
+    line-height: 1.05;
 }
 .orbit-subtitle {
     color: #8b949e;
