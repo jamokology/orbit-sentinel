@@ -106,18 +106,14 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&display=swap');
 
 /* ── Hide Streamlit chrome (keep top menu) ── */
-footer, footer * { visibility: hidden !important; height: 0 !important; }
-[data-testid="stToolbar"]        { display: none !important; }
-[data-testid="stDecoration"]     { display: none !important; }
-[data-testid="stStatusWidget"]   { display: none !important; }
-[data-testid="stAppDeployButton"]{ display: none !important; }
-/* bottom-right badge on all screen sizes */
-.viewerBadge_container__r5tak,
-.viewerBadge_link__qRIco,
-[class*="viewerBadge"]           { display: none !important; }
-/* bottom bar that appears on mobile */
-[data-testid="stBottom"],
+[data-testid="stToolbar"]         { display: none !important; }
+[data-testid="stDecoration"]      { display: none !important; }
+[data-testid="stStatusWidget"]    { display: none !important; }
+[data-testid="stAppDeployButton"] { display: none !important; }
+[data-testid="stBottom"]          { display: none !important; }
 [data-testid="stBottomBlockContainer"] { display: none !important; }
+[class*="viewerBadge"]            { display: none !important; }
+footer                            { display: none !important; }
 
 /* ── Base ── */
 [data-testid="stAppViewContainer"] { background: #0f1117; }
@@ -143,14 +139,14 @@ footer, footer * { visibility: hidden !important; height: 0 !important; }
 }
 
 /* ── Header ── */
-.orbit-title {
-    font-family: 'Cormorant Garamond', Georgia, serif;
-    color: #e6edf3;
-    font-size: clamp(3rem, 11vw, 5.5rem);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    margin: 0;
-    line-height: 1.05;
+.orbit-title, p.orbit-title, div p.orbit-title {
+    font-family: 'Cormorant Garamond', Georgia, serif !important;
+    color: #e6edf3 !important;
+    font-size: clamp(3rem, 11vw, 5.5rem) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.06em !important;
+    margin: 0 !important;
+    line-height: 1.05 !important;
 }
 .orbit-subtitle {
     color: #8b949e;
@@ -342,15 +338,35 @@ for _, row in df_filtered.iterrows():
         tooltip=f"{row['confidence']*100:.1f}%",
     ).add_to(m)
 
-# 画面の高さに応じて地図の高さを切り替える JS を注入
+# JSでStreamlitバッジをポーリング削除（CSSでは消えない場合の保険）
 st.markdown("""
 <script>
 (function() {
-    const isMobile = window.innerWidth < 640;
-    const h = isMobile ? Math.floor(window.innerHeight * 0.55) : 600;
-    const frames = window.parent.document.querySelectorAll('iframe');
-    frames.forEach(f => { if (f.src && f.src.includes('streamlit')) return;
-                           f.style.height = h + 'px'; });
+    function purge() {
+        const doc = window.parent.document;
+        // "Hosted by Streamlit" バッジ・フッター系を全て削除
+        const selectors = [
+            '[class*="viewerBadge"]',
+            '[data-testid="stBottom"]',
+            '[data-testid="stBottomBlockContainer"]',
+            'footer',
+        ];
+        selectors.forEach(sel => {
+            doc.querySelectorAll(sel).forEach(el => el.remove());
+        });
+        // footer テキストを含む要素も削除
+        doc.querySelectorAll('div, span, a').forEach(el => {
+            if (el.children.length === 0 &&
+                el.textContent.includes('Streamlit') &&
+                el.closest('footer,#footer,[class*="footer"],[class*="Badge"]')) {
+                el.closest('[class*="Badge"],[class*="badge"],[class*="footer"]')?.remove();
+            }
+        });
+    }
+    purge();
+    // Streamlit は動的に DOM を更新するので一定間隔で再実行
+    const interval = setInterval(purge, 800);
+    setTimeout(() => clearInterval(interval), 15000);
 })();
 </script>
 """, unsafe_allow_html=True)
