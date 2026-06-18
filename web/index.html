@@ -439,7 +439,20 @@ const DETECTIONS = [
   { lat: -0.1834,  lon: -75.8712, conf: 0.61, date: "2025-03-19" },
   { lat: -1.5423,  lon: -77.1234, conf: 0.79, date: "2025-03-19" },
 ];
-const geoCache = new Array(DETECTIONS.length).fill(null);
+// Pre-fill geoCache instantly from coordinates so the filter works on load.
+// Nominatim will overwrite with accurate names as requests complete.
+function estimateRegion(lat, lon) {
+  if (lat > -6  && lon < -75)                    return "Loreto Norte";
+  if (lat > -10 && lat <= -6  && lon < -74)      return "Loreto Sur / Ucayali";
+  if (lat > -10 && lat <= -6  && lon >= -74)      return "San Martín";
+  if (lat > -2  && lat <= 0)                      return "Loreto Norte";
+  if (lat <= -10 && lat > -13 && lon > -73)       return "Ucayali";
+  if (lat <= -10 && lat > -13 && lon <= -73)      return "Junín / Pasco";
+  if (lat <= -13 && lon > -71)                    return "Madre de Dios";
+  if (lat <= -13 && lon <= -71)                   return "Cusco / Apurímac";
+  return "Amazonia";
+}
+const geoCache = DETECTIONS.map(d => estimateRegion(d.lat, d.lon));
 
 function tierColor(conf) {
   if (conf >= 0.85) return "#E53935";
@@ -786,8 +799,9 @@ function toggleStrip() {
 })();
 
 // ── Reverse geocoding ──────────────────────────────────────────────────────
+const geoDone = new Array(DETECTIONS.length).fill(false); // tracks Nominatim completion
 async function fetchDistrict(detIdx) {
-  if (geoCache[detIdx] !== null) return;
+  if (geoDone[detIdx]) return;
   const d = DETECTIONS[detIdx];
   try {
     const res  = await fetch(
@@ -796,8 +810,9 @@ async function fetchDistrict(detIdx) {
     );
     const data = await res.json();
     const addr = data.address || {};
-    geoCache[detIdx] = addr.county || addr.state_district || addr.state || "—";
-  } catch { geoCache[detIdx] = "—"; }
+    geoCache[detIdx] = addr.county || addr.state_district || addr.state || geoCache[detIdx];
+  } catch { /* keep estimate */ }
+  geoDone[detIdx] = true;
 
   // Update card if visible
   const fi = filteredIndices.indexOf(detIdx);
@@ -805,8 +820,8 @@ async function fetchDistrict(detIdx) {
     const el = document.getElementById(`geo-${fi}`);
     if (el) el.textContent = `🏛 ${geoCache[detIdx]}`;
   }
-  // Repopulate district select
-  populateDistrictSelect();
+  // Repopulate district checklist with updated names
+  populateDistrictChecklist();
 }
 
 async function prefetchGeo() {
