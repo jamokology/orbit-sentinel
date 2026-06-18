@@ -246,15 +246,6 @@
     .copy-icon:hover { background: rgba(255,255,255,0.1); color: var(--text); }
     .copy-icon.copied { color: var(--green); }
 
-    /* ── Maps link button ── */
-    .card-maps-btn {
-      display: flex; align-items: center; justify-content: center; gap: 5px;
-      margin-top: 8px; padding: 6px;
-      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 7px; font-size: 0.72rem; color: var(--muted);
-      text-decoration: none; transition: background 0.15s, color 0.15s;
-    }
-    .card-maps-btn:hover { background: rgba(255,255,255,0.13); color: var(--text); }
 
     /* ── Location pulse ── */
     @keyframes pulse { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.6);opacity:.3} }
@@ -763,12 +754,10 @@ function renderCards() {
         <span class="copy-icon" id="copy-icon-${fi}"
           onclick="copyCoord(event,'${coord}','copy-icon-${fi}')"
           title="${t.btn_copy}">⧉</span>
+        <a class="copy-icon" href="${mapsUrl}" target="_blank" rel="noopener"
+          onclick="event.stopPropagation()" title="${t.btn_maps}">🗺</a>
       </div>
       <div class="card-district">🏛 ${geo}</div>
-      <a class="card-maps-btn" href="${mapsUrl}" target="_blank" rel="noopener"
-        onclick="event.stopPropagation()">
-        🗺 ${t.btn_maps}
-      </a>
     </div>`;
   }).join("");
   strip.onscroll = onStripScroll;
