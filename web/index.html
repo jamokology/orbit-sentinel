@@ -122,6 +122,16 @@
     .card.selected { opacity: 1; }
     .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
     .card-conf { font-size: 1.15rem; font-weight: 700; }
+    .has-tip { position: relative; cursor: help; text-decoration: underline dotted; }
+    .has-tip::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+      background: #2d333b; color: #e6edf3; font-size: 0.72rem; white-space: nowrap;
+      padding: 3px 8px; border-radius: 5px; border: 1px solid #444c56;
+      pointer-events: none; opacity: 0; transition: opacity 0.1s;
+      z-index: 999;
+    }
+    .has-tip:hover::after { opacity: 1; }
     .card-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
     .card-dot-active { background: #3fb950; box-shadow: 0 0 0 0 rgba(63,185,80,0.6); animation: pulse-green 2s infinite; }
     .card-dot-unconfirmed { background: #d29922; }
@@ -810,7 +820,7 @@ function buildCard(detIdx) {
     </div>
     <div class="card-row">🔄 <span>${d.confirmed_at}</span></div>
     <div class="card-row">📅 <span>${d.detected_at}</span></div>
-    <div class="card-row">🛰️ <span title="${sourceTitle}" style="${sourceTitle ? 'cursor:help;text-decoration:underline dotted' : ''}">${sourceLabel}</span></div>
+    <div class="card-row">🛰️ <span ${sourceTitle ? `class="has-tip" data-tip="${sourceTitle}"` : ''}>${sourceLabel}</span></div>
     <div class="card-row card-coord-row">📍 <span>${coord}</span></div>
     <div class="card-actions">
       <button class="card-act" id="copy-act-${detIdx}"
