@@ -802,6 +802,10 @@ function markerFadeIn(marker) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     path.style.transition = 'opacity 0.3s ease';
     path.style.opacity    = '1';
+    // Clear inline styles after animation so Leaflet manages the path normally.
+    // Leaving transition on the path causes a delay when the browser lazy-renders
+    // off-screen SVG elements as they scroll into the viewport.
+    setTimeout(() => { path.style.transition = ''; path.style.opacity = ''; }, 350);
   }));
 }
 
