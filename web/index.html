@@ -122,17 +122,17 @@
     .card.selected { opacity: 1; }
     .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
     .card-conf { font-size: 1.15rem; font-weight: 700; }
-    .has-tip { position: relative; cursor: help; text-decoration: underline dotted; display: inline-block; }
+    .has-tip { position: relative; cursor: help; display: inline-block; }
     .has-tip::after {
       content: attr(data-tip);
-      position: absolute; bottom: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+      position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
       background: #2d333b; color: #e6edf3; font-size: 0.72rem; white-space: nowrap;
       padding: 3px 8px; border-radius: 5px; border: 1px solid #444c56;
       pointer-events: none; opacity: 0; transition: opacity 0.1s;
       z-index: 999;
     }
     .has-tip:hover::after { opacity: 1; }
-    .card-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; text-decoration: none !important; }
+    .card-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
     .card-dot-active { background: #3fb950; box-shadow: 0 0 0 0 rgba(63,185,80,0.6); animation: pulse-green 2s infinite; }
     .card-dot-unconfirmed { background: #d29922; }
     @keyframes pulse-green {
@@ -465,6 +465,10 @@ const TEXTS = {
     tip_district:         "Distrito / Provincia",
     tip_active:           "Redetectado en los últimos 3 meses",
     tip_unconfirmed:      "Sin redetección en los últimos 3 meses",
+    tip_copy:             "Copiar coordenadas",
+    tip_maps:             "Abrir en Google Maps",
+    tip_gpx:              "Descargar archivo GPX",
+    tip_kml:              "Descargar archivo KML",
   },
   en: {
     filter_header:        "Minimum confidence",
@@ -509,6 +513,10 @@ const TEXTS = {
     tip_district:         "District / Province",
     tip_active:           "Re-detected within the last 3 months",
     tip_unconfirmed:      "Not re-detected within the last 3 months",
+    tip_copy:             "Copy coordinates",
+    tip_maps:             "Open in Google Maps",
+    tip_gpx:              "Download GPX file",
+    tip_kml:              "Download KML file",
   },
 };
 let lang = "es";
@@ -838,16 +846,14 @@ function buildCard(detIdx) {
     <div class="card-row">🛰️ <span ${sourceTip ? `class="has-tip" data-tip="${sourceTip}"` : ''}>${sourceLabel}</span></div>
     <div class="card-row card-coord-row">📍 <span class="has-tip" data-tip="${t.tip_coord}">${coord}</span></div>
     <div class="card-actions">
-      <button class="card-act" id="copy-act-${detIdx}"
-        onclick="copyCoord(event,'${coord}','copy-act-${detIdx}')" title="${t.btn_copy}">⧉</button>
-      <a class="card-act" href="${mapsUrl}" target="_blank" rel="noopener"
-        onclick="event.stopPropagation()" title="${t.btn_maps}">🗺</a>
-      <button class="card-act small-text"
-        onclick="downloadGpx(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')"
-        title="GPX">GPX</button>
-      <button class="card-act small-text"
-        onclick="downloadKml(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')"
-        title="KML">KML</button>
+      <button class="card-act has-tip" id="copy-act-${detIdx}" data-tip="${t.tip_copy}"
+        onclick="copyCoord(event,'${coord}','copy-act-${detIdx}')">⧉</button>
+      <a class="card-act has-tip" href="${mapsUrl}" target="_blank" rel="noopener" data-tip="${t.tip_maps}"
+        onclick="event.stopPropagation()">🗺</a>
+      <button class="card-act small-text has-tip" data-tip="${t.tip_gpx}"
+        onclick="downloadGpx(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')">GPX</button>
+      <button class="card-act small-text has-tip" data-tip="${t.tip_kml}"
+        onclick="downloadKml(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')">KML</button>
     </div>
     ${geo && geo !== '—' ? `<div class="card-district has-tip" data-tip="${t.tip_district}">🏛 ${geo}</div>` : ''}`;
   el.addEventListener('click', e => {
