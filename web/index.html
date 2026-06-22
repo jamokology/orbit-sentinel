@@ -893,12 +893,15 @@ function renderAll() {
   // so they don't appear to the left of visible cards during fade-out
   cardsToFade.forEach(c => strip.appendChild(c));
 
-  // Trigger card fade-out now that they're at the safe end position
+  // Trigger card fade-out after one rAF so the browser commits the initial
+  // state (current opacity/position) before applying the transition target
   cardsToFade.forEach(c => {
-    c.style.transition = 'opacity 0.2s ease, transform 0.2s ease, border-color 0.2s, box-shadow 0.2s';
-    c.style.opacity    = '0';
-    c.style.transform  = 'translateY(-6px)';
-    setTimeout(() => c.remove(), 220);
+    requestAnimationFrame(() => {
+      c.style.transition = 'opacity 0.2s ease, transform 0.2s ease, border-color 0.2s, box-shadow 0.2s';
+      c.style.opacity    = '0';
+      c.style.transform  = 'translateY(-6px)';
+      setTimeout(() => c.remove(), 240);
+    });
   });
 
   strip.onscroll = onStripScroll;
