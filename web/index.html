@@ -210,32 +210,35 @@
     .check-item label { cursor: pointer; color: var(--text); }
     .check-all { border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 2px; }
 
-    /* ── Zoom control ── */
-    .zoom-ctrl {
-      background: rgba(22,27,34,0.82) !important;
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1.5px solid var(--border) !important;
+    /* ── Map controls (independent cards, topright) ── */
+    .map-ctrl {
+      background: rgba(22,27,34,0.72) !important;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(48,54,61,0.7) !important;
       border-radius: 10px !important;
       padding: 0 !important; overflow: hidden;
-      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .zoom-ctrl.zoomed {
-      border-color: var(--accent) !important;
-      box-shadow: 0 0 0 1px rgba(88,166,255,0.4), 0 4px 20px rgba(88,166,255,0.2) !important;
-    }
-    .zoom-ctrl-btn {
-      display: flex; align-items: center; gap: 8px;
+    .map-ctrl.active { border-color: #4da6e8 !important; box-shadow: 0 0 0 1px rgba(77,166,232,0.3) !important; }
+    .map-ctrl-btn {
+      display: flex; align-items: center; gap: 7px;
       background: transparent; border: none;
       color: var(--text); font-family: 'Inter', sans-serif;
-      font-size: 0.82rem; padding: 9px 14px;
+      font-size: 0.82rem; padding: 8px 12px;
       cursor: pointer; white-space: nowrap;
       transition: background 0.15s, color 0.2s;
       width: 100%;
     }
-    .zoom-ctrl-btn:hover { background: rgba(255,255,255,0.07); }
-    .zoom-ctrl-btn .zicon { font-size: 1.05rem; transition: transform 0.3s; }
-    .zoom-ctrl.zoomed .zoom-ctrl-btn { color: var(--accent); }
-    .zoom-ctrl.zoomed .zoom-ctrl-btn .zicon { transform: scale(1.2); }
+    .map-ctrl-btn:hover { background: rgba(255,255,255,0.07); }
+    .map-ctrl.active .map-ctrl-btn { color: #4da6e8; }
+    .map-ctrl-btn .ctrl-icon { font-size: 1.05rem; }
+
+    /* ZoomIn/ZoomOut cross-fade within one container (CSS grid overlay trick) */
+    .zoom-swap { display: grid; }
+    .zoom-swap > * {
+      grid-area: 1 / 1;         /* both occupy same cell → overlap */
+      transition: opacity 0.2s ease;
+    }
+    .zoom-swap > .hidden-btn { opacity: 0; pointer-events: none; }
 
     /* ── Copied toast ── */
     .toast {
@@ -271,6 +274,17 @@
     /* ── Location pulse ── */
     @keyframes pulse { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.6);opacity:.3} }
     .loc-pulse { width:14px;height:14px;border-radius:50%;background:#58a6ff;box-shadow:0 0 0 3px rgba(88,166,255,.4);animation:pulse 2s infinite; }
+
+    /* ── River tooltip ── */
+    .leaflet-tooltip.river-tooltip {
+      background: rgba(22,27,34,0.88) !important;
+      border: 1px solid #4da6e8 !important;
+      color: #4da6e8 !important;
+      font-size: 0.75rem; padding: 3px 8px;
+      border-radius: 6px; box-shadow: none;
+    }
+    .leaflet-tooltip.river-tooltip::before { display: none; }
+
   </style>
 </head>
 <body>
@@ -417,6 +431,9 @@ const TEXTS = {
     btn_copied:           "¡Copiado!",
     maps_confirm:         "¿Abrir Google Maps en esta ubicación?",
     my_location:          "Tu ubicación",
+    rivers_loading:       "Cargando ríos…",
+    rivers_error:         "⚠ Error al cargar ríos",
+    rivers_label:         "Ríos",
   },
   en: {
     filter_header:        "Minimum confidence",
@@ -447,6 +464,9 @@ const TEXTS = {
     btn_copied:           "Copied!",
     maps_confirm:         "Open this location in Google Maps?",
     my_location:          "Your location",
+    rivers_loading:       "Loading rivers…",
+    rivers_error:         "⚠ Failed to load rivers",
+    rivers_label:         "Rivers",
   },
 };
 let lang = "es";
@@ -461,7 +481,7 @@ function applyLang() {
   document.getElementById("btn-lang-top").textContent = t.lang_toggle;
   document.documentElement.lang = lang;
   refreshSelectLabels();
-  renderAll();
+  forceRender();
   updateZoomBtn();
   if (locationMarker) locationMarker.setTooltipContent(`📍 ${TEXTS[lang].my_location}`);
 }
@@ -518,52 +538,79 @@ function toggleMapTile() {
 }
 
 // ── Zoom toggle control ────────────────────────────────────────────────────
-let isZoomed = false;
-const DETAIL_ZOOM  = 16;   // close enough to see a runway clearly
+const DETAIL_ZOOM  = 16;
+const OVERVIEW_ZOOM_THRESHOLD = 10;  // below → show "View runway"; above → show "Overview"
 const OVERVIEW_POS = { lat: -9.19, lon: -75.0, zoom: 6 };
+
+const RIVER_SVG = `<svg width="20" height="14" viewBox="0 0 20 14" fill="none" style="flex-shrink:0">
+  <path d="M1 4 C4 1,7 7,10 4 C13 1,16 7,19 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M1 10 C4 7,7 13,10 10 C13 7,16 13,19 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+
+// ── Map controls (topright) ───────────────────────────────────────────────
+// ZoomIn + ZoomOut share ONE container using CSS grid overlay → cross-fade,
+// no layout shift. Rivers is a separate control below.
 
 const ZoomControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd() {
-    const wrap = L.DomUtil.create('div', 'leaflet-bar zoom-ctrl');
-    const btn  = L.DomUtil.create('button', 'zoom-ctrl-btn', wrap);
-    btn.id = 'zoom-toggle-btn';
-    btn.innerHTML = '<span class="zicon">🔍</span><span id="zoom-btn-text"></span>';
-    L.DomEvent.on(btn, 'click', L.DomEvent.stopPropagation);
-    L.DomEvent.on(btn, 'click', toggleZoom);
+    const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
+    // grid wrapper: both buttons in the same cell → they overlap
+    const grid = L.DomUtil.create('div', 'zoom-swap', wrap);
+
+    const btnIn  = L.DomUtil.create('button', 'map-ctrl-btn', grid);
+    btnIn.id = 'btn-zoom-in';
+    btnIn.innerHTML = '<span class="ctrl-icon">🔍</span><span id="zoom-in-text"></span>';
+
+    const btnOut = L.DomUtil.create('button', 'map-ctrl-btn hidden-btn', grid);
+    btnOut.id = 'btn-zoom-out';
+    btnOut.innerHTML = '<span class="ctrl-icon">🌍</span><span id="zoom-out-text"></span>';
+
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.on(btnIn,  'click', () => zoomToSelected());
+    L.DomEvent.on(btnOut, 'click', () => flyToOverview());
     return wrap;
   },
 });
-new ZoomControl().addTo(map);
+
+const RiverControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
+    const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
+    btn.id = 'btn-rivers';
+    btn.innerHTML = RIVER_SVG + '<span id="river-btn-label"></span>';
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.on(btn, 'click', () => toggleRivers());
+    return wrap;
+  },
+});
+
+const zoomCtrl  = new ZoomControl().addTo(map);
+const riverCtrl = new RiverControl().addTo(map);
 
 function updateZoomBtn() {
-  const t    = TEXTS[lang];
-  const btn  = document.getElementById('zoom-toggle-btn');
-  const txt  = document.getElementById('zoom-btn-text');
-  const ctrl = btn?.closest('.zoom-ctrl');
-  if (!btn) return;
-  if (isZoomed) {
-    btn.querySelector('.zicon').textContent = '🌍';
-    txt.textContent = t.zoom_out;
-    btn.classList.add('zoomed');
-    ctrl?.classList.add('zoomed');
-  } else {
-    btn.querySelector('.zicon').textContent = '🔍';
-    txt.textContent = t.zoom_in;
-    btn.classList.remove('zoomed');
-    ctrl?.classList.remove('zoomed');
-  }
+  const t = TEXTS[lang];
+  const inTxt    = document.getElementById('zoom-in-text');
+  const outTxt   = document.getElementById('zoom-out-text');
+  const riverLbl = document.getElementById('river-btn-label');
+  if (inTxt)    inTxt.textContent    = t.zoom_in;
+  if (outTxt)   outTxt.textContent   = t.zoom_out;
+  if (riverLbl) riverLbl.textContent = t.rivers_label;
 }
 
-function toggleZoom() {
-  if (isZoomed) {
-    isZoomed = false;
-    map.flyTo([OVERVIEW_POS.lat, OVERVIEW_POS.lon], OVERVIEW_POS.zoom, { duration: 1.2 });
-  } else {
-    isZoomed = true;
-    zoomToSelected();
-  }
-  updateZoomBtn();
+function syncZoomControls() {
+  const zoomed   = map.getZoom() >= OVERVIEW_ZOOM_THRESHOLD;
+  const btnIn    = document.getElementById('btn-zoom-in');
+  const btnOut   = document.getElementById('btn-zoom-out');
+  // Cross-fade: only toggle class, no display change → no layout shift
+  if (btnIn)  btnIn.classList.toggle('hidden-btn',  zoomed);
+  if (btnOut) btnOut.classList.toggle('hidden-btn', !zoomed);
+}
+map.on('zoomend', syncZoomControls);
+
+function flyToOverview() {
+  map.flyTo([OVERVIEW_POS.lat, OVERVIEW_POS.lon], OVERVIEW_POS.zoom, { duration: 1.2 });
 }
 
 function zoomToSelected() {
@@ -701,98 +748,206 @@ function refreshSelectLabels() {
   populateDistrictChecklist();
 }
 
-// ── Markers & selection ────────────────────────────────────────────────────
-let markerObjects  = [];
+// ── Markers & cards — keyed maps for per-item diffing ─────────────────────
+let markerMap       = new Map();  // detIdx → Leaflet marker
+let cardMap         = new Map();  // detIdx → DOM element
 let filteredIndices = [];
-let selectedFi     = 0;
+let selectedFi      = 0;
+
+// Build a single card DOM element (no innerHTML on strip)
+function buildCard(detIdx) {
+  const t    = TEXTS[lang];
+  const d    = DETECTIONS[detIdx];
+  const color = tierColor(d.conf);
+  const geo  = geoCache[detIdx] || '—';
+  const coord = `${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}`;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lon}`;
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.dataset.detidx = detIdx;
+  el.innerHTML = `
+    <div class="card-conf" style="color:${color}">${(d.conf*100).toFixed(1)}%</div>
+    <div class="card-row">📅 <span>${d.date}</span></div>
+    <div class="card-row card-coord-row">📍 <span>${coord}</span></div>
+    <div class="card-actions">
+      <button class="card-act" id="copy-act-${detIdx}"
+        onclick="copyCoord(event,'${coord}','copy-act-${detIdx}')" title="${t.btn_copy}">⧉</button>
+      <a class="card-act" href="${mapsUrl}" target="_blank" rel="noopener"
+        onclick="event.stopPropagation()" title="${t.btn_maps}">🗺</a>
+      <button class="card-act small-text"
+        onclick="downloadGpx(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')"
+        title="GPX">GPX</button>
+      <button class="card-act small-text"
+        onclick="downloadKml(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')"
+        title="KML">KML</button>
+    </div>
+    <div class="card-district">🏛 ${geo}</div>`;
+  el.addEventListener('click', e => {
+    if (e.target.closest('.card-act, a')) return;
+    const fi = filteredIndices.indexOf(detIdx);
+    if (fi < 0) return;
+    selectFi(fi, true);
+  });
+  return el;
+}
+
+function markerFadeIn(marker) {
+  const path = marker._path;
+  if (!path) return;
+  path.style.transition = 'none';
+  path.style.opacity    = '0';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    path.style.transition = 'opacity 0.3s ease';
+    path.style.opacity    = '1';
+  }));
+}
+
+function markerFadeOut(marker) {
+  const path = marker._path;
+  if (path) {
+    path.style.transition = 'opacity 0.25s ease';
+    path.style.opacity    = '0';
+    setTimeout(() => map.removeLayer(marker), 270);
+  } else {
+    map.removeLayer(marker);
+  }
+}
+
+// Full rebuild (used on language change)
+function forceRender() {
+  markerMap.forEach(m => map.removeLayer(m));
+  cardMap.forEach(c => c.remove());
+  markerMap.clear();
+  cardMap.clear();
+  filteredIndices = [];
+  renderAll();
+}
 
 function renderAll() {
-  filteredIndices = getFilteredIndices();
-  markerObjects.forEach(({ marker }) => map.removeLayer(marker));
-  markerObjects = [];
+  const newIndices = getFilteredIndices();
+  const newSet     = new Set(newIndices);
+  const oldSet     = new Set(filteredIndices);
 
-  filteredIndices.forEach((detIdx, fi) => {
-    const d = DETECTIONS[detIdx];
-    const color = tierColor(d.conf);
+  // Nothing changed — skip entirely
+  if (newIndices.length === filteredIndices.length &&
+      newIndices.every((v, i) => v === filteredIndices[i])) {
+    updateMetrics();
+    return;
+  }
+
+  const strip = document.getElementById('card-strip');
+
+  // Fade-out items no longer visible
+  for (const detIdx of oldSet) {
+    if (newSet.has(detIdx)) continue;
+    const m = markerMap.get(detIdx);
+    if (m) { markerMap.delete(detIdx); markerFadeOut(m); }
+    const c = cardMap.get(detIdx);
+    if (c) {
+      cardMap.delete(detIdx);
+      c.style.transition = 'opacity 0.2s ease, transform 0.2s ease, border-color 0.2s, box-shadow 0.2s';
+      c.style.opacity    = '0';
+      c.style.transform  = 'translateY(-6px)';
+      setTimeout(() => c.remove(), 220);
+    }
+  }
+
+  filteredIndices = newIndices;
+
+  // Collect new detIdx values for fade-in after applySelection
+  const toAdd = [];
+
+  // Add newly visible items (invisible for now — fade-in triggered after applySelection)
+  for (const detIdx of newSet) {
+    if (oldSet.has(detIdx)) continue;
+    toAdd.push(detIdx);
+
+    const d      = DETECTIONS[detIdx];
+    const color  = tierColor(d.conf);
     const marker = L.circleMarker([d.lat, d.lon], {
       radius: 10, color, weight: 2, fillColor: color, fillOpacity: 0.75,
     });
     marker.on('click', () => {
+      const fi = filteredIndices.indexOf(detIdx);
+      if (fi < 0) return;
       if (stripCollapsed) toggleStrip();
       selectFi(fi, true);
       scrollCardTo(fi);
     });
     marker.addTo(map);
-    markerObjects.push({ marker, detIdx });
-  });
+    markerMap.set(detIdx, marker);
+
+    const card = buildCard(detIdx);
+    card.style.transition = 'none';
+    card.style.opacity    = '0';
+    card.style.transform  = 'translateY(6px)';
+    strip.appendChild(card);
+    cardMap.set(detIdx, card);
+  }
+
+  // Re-sort cards in filteredIndices order
+  for (const detIdx of filteredIndices) {
+    const c = cardMap.get(detIdx);
+    if (c) strip.appendChild(c);
+  }
+  strip.onscroll = onStripScroll;
 
   updateMetrics();
-  renderCards();
   if (selectedFi >= filteredIndices.length) selectedFi = 0;
+
+  // applySelection sets correct opacity (1 or 0.6) on all cards BEFORE fade-in
   applySelection(selectedFi, false);
+
+  // Now trigger fade-in using the opacity applySelection just set
+  for (const detIdx of toAdd) {
+    const card   = cardMap.get(detIdx);
+    const marker = markerMap.get(detIdx);
+    if (card) {
+      const target = card.style.opacity || '0.6';
+      card.style.opacity = '0';  // ensure we start from 0
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        card.style.transition = 'opacity 0.25s ease, transform 0.25s ease, border-color 0.2s, box-shadow 0.2s';
+        card.style.opacity    = target;
+        card.style.transform  = 'translateY(0)';
+      }));
+    }
+    if (marker) markerFadeIn(marker);
+  }
 }
 
 function selectFi(fi, panMap) {
   selectedFi = fi;
-  if (isZoomed) {
-    zoomToSelected();   // re-fly to newly selected point at detail zoom
+  const detailView = map.getZoom() >= OVERVIEW_ZOOM_THRESHOLD;
+  if (detailView) {
+    zoomToSelected();
   } else {
     applySelection(fi, panMap);
   }
-  applySelection(fi, !isZoomed && panMap);
+  applySelection(fi, !detailView && panMap);
   scrollCardTo(fi);
 }
 
 function applySelection(fi, panMap) {
-  markerObjects.forEach(({ marker, detIdx }, i) => {
+  filteredIndices.forEach((detIdx, i) => {
     const color = tierColor(DETECTIONS[detIdx].conf);
     const sel   = i === fi;
-    marker.setStyle({ radius: sel ? 13 : 10, weight: sel ? 3 : 2, fillOpacity: sel ? 1 : 0.65, color: sel ? '#ffffff' : color, fillColor: color });
-    if (sel) marker.bringToFront();
-  });
-  document.querySelectorAll('.card').forEach((el, i) => {
-    const sel   = i === fi;
-    const color = tierColor(DETECTIONS[filteredIndices[i]].conf);
-    el.classList.toggle('selected', sel);
-    el.style.borderColor = sel ? color : 'rgba(48,54,61,0.7)';
-    el.style.boxShadow   = sel ? `0 0 0 2px ${color}55` : 'none';
+    const marker = markerMap.get(detIdx);
+    if (marker) {
+      marker.setStyle({ radius: sel ? 13 : 10, weight: sel ? 3 : 2, fillOpacity: sel ? 1 : 0.65, color: sel ? '#ffffff' : color, fillColor: color });
+      if (sel) marker.bringToFront();
+    }
+    const card = cardMap.get(detIdx);
+    if (card) {
+      card.classList.toggle('selected', sel);
+      card.style.borderColor = sel ? color : 'rgba(48,54,61,0.7)';
+      card.style.boxShadow   = sel ? `0 0 0 2px ${color}55` : 'none';
+      card.style.opacity     = sel ? '1' : '0.6';
+    }
   });
   if (panMap && filteredIndices[fi] !== undefined) {
     const d = DETECTIONS[filteredIndices[fi]];
     map.panTo([d.lat, d.lon], { animate: true, duration: 0.5 });
   }
-}
-
-// ── Cards ──────────────────────────────────────────────────────────────────
-function renderCards() {
-  const t     = TEXTS[lang];
-  const strip = document.getElementById("card-strip");
-  strip.innerHTML = filteredIndices.map((detIdx, fi) => {
-    const d     = DETECTIONS[detIdx];
-    const color = tierColor(d.conf);
-    const geo   = geoCache[detIdx] || "—";
-    const coord   = `${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}`;
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lon}`;
-    return `<div class="card" data-fi="${fi}" onclick="selectFi(${fi}, true)">
-      <div class="card-conf" style="color:${color}">${(d.conf*100).toFixed(1)}%</div>
-      <div class="card-row">📅 <span>${d.date}</span></div>
-      <div class="card-row card-coord-row">📍 <span>${coord}</span></div>
-      <div class="card-actions">
-        <button class="card-act" id="copy-act-${fi}"
-          onclick="copyCoord(event,'${coord}','copy-act-${fi}')" title="${t.btn_copy}">⧉</button>
-        <a class="card-act" href="${mapsUrl}" target="_blank" rel="noopener"
-          onclick="event.stopPropagation()" title="${t.btn_maps}">🗺</a>
-        <button class="card-act small-text"
-          onclick="downloadGpx(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')"
-          title="GPX">GPX</button>
-        <button class="card-act small-text"
-          onclick="downloadKml(event,${d.lat},${d.lon},'${(d.conf*100).toFixed(1)}','${d.date}','${geo}')"
-          title="KML">KML</button>
-      </div>
-      <div class="card-district">🏛 ${geo}</div>
-    </div>`;
-  }).join("");
-  strip.onscroll = onStripScroll;
 }
 
 // ── Card actions ───────────────────────────────────────────────────────────
@@ -868,24 +1023,27 @@ function fallbackCopy(text) {
 
 
 function scrollCardTo(fi) {
-  const strip = document.getElementById("card-strip");
-  const card  = strip.querySelector(`[data-fi="${fi}"]`);
+  const detIdx = filteredIndices[fi];
+  const card   = cardMap.get(detIdx);
   if (!card) return;
-  strip.scrollTo({ left: card.offsetLeft - strip.clientWidth / 2 + card.offsetWidth / 2, behavior: "smooth" });
+  const strip = document.getElementById('card-strip');
+  strip.scrollTo({ left: card.offsetLeft - strip.clientWidth / 2 + card.offsetWidth / 2, behavior: 'smooth' });
 }
 
 let scrollTimer = null;
 function onStripScroll() {
   clearTimeout(scrollTimer);
   scrollTimer = setTimeout(() => {
-    const strip  = document.getElementById("card-strip");
+    const strip  = document.getElementById('card-strip');
     const center = strip.scrollLeft + strip.clientWidth / 2;
-    let minDist = Infinity, closestFi = 0;
-    strip.querySelectorAll('.card').forEach(card => {
+    let minDist = Infinity, bestFi = 0;
+    filteredIndices.forEach((detIdx, fi) => {
+      const card = cardMap.get(detIdx);
+      if (!card) return;
       const dist = Math.abs(card.offsetLeft + card.offsetWidth / 2 - center);
-      if (dist < minDist) { minDist = dist; closestFi = parseInt(card.dataset.fi); }
+      if (dist < minDist) { minDist = dist; bestFi = fi; }
     });
-    if (closestFi !== selectedFi) { selectedFi = closestFi; applySelection(closestFi, true); }
+    if (bestFi !== selectedFi) { selectedFi = bestFi; applySelection(bestFi, true); }
   }, 80);
 }
 
@@ -950,6 +1108,54 @@ function toggleSidebar() {
   setTimeout(() => map.invalidateSize(), 270);
 }
 
+// ── Rivers (Natural Earth GeoJSON via CloudFront CDN) ─────────────────────
+// Pre-hosted public dataset — no API key, no timeout issues
+let riversVisible  = false;
+let riverLayer     = null;
+let riverGeoCache  = null;  // cache fetched GeoJSON in memory
+
+const RIVER_GEO_URL = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_rivers_lake_centerlines.geojson';
+
+async function toggleRivers() {
+  riversVisible = !riversVisible;
+  const ctrlEl = riverCtrl.getContainer();
+  if (ctrlEl) ctrlEl.classList.toggle('active', riversVisible);
+
+  if (!riversVisible) {
+    if (riverLayer) { map.removeLayer(riverLayer); riverLayer = null; }
+    return;
+  }
+
+  // Fetch once, then reuse from cache
+  if (!riverGeoCache) {
+    try {
+      const res = await fetch(RIVER_GEO_URL);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      riverGeoCache = await res.json();
+    } catch (err) {
+      console.warn('River GeoJSON fetch failed:', err);
+      showToast(TEXTS[lang].rivers_error);
+      riversVisible = false;
+      if (ctrlEl) ctrlEl.classList.remove('active');
+      return;
+    }
+  }
+
+  if (riverLayer) map.removeLayer(riverLayer);
+  riverLayer = L.geoJSON(riverGeoCache, {
+    style: f => ({
+      color:   '#4da6e8',
+      weight:  (f.properties?.scalerank ?? 9) <= 4 ? 2.5 : 1.2,
+      opacity: 0.75,
+    }),
+    onEachFeature(f, layer) {
+      const name = f.properties?.name || f.properties?.name_en;
+      if (name) layer.bindTooltip(name, { sticky: true, className: 'river-tooltip' });
+    },
+  }).addTo(map);
+  riverLayer.bringToBack();
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 document.getElementById("sb-conf-val").textContent   = "50";
 document.getElementById("main-conf-val").textContent = "50%";
@@ -957,7 +1163,7 @@ updateConfSliderFill(50);
 initDateRange();
 populateDistrictChecklist();
 renderAll();
-setTimeout(() => { scrollCardTo(0); updateZoomBtn(); }, 100);
+setTimeout(() => { scrollCardTo(0); updateZoomBtn(); syncZoomControls(); }, 100);
 </script>
 </body>
 </html>
