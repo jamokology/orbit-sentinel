@@ -1,0 +1,21 @@
+{
+  "generated_at": "2025-03-19T11:00:00Z",
+  "is_demo": true,
+  "detections": [
+    {"lat": -3.7491,  "lon": -73.2538, "confidence": 0.91, "detected_at": "2025-03-15 08:22"},
+    {"lat": -5.1843,  "lon": -75.0152, "confidence": 0.84, "detected_at": "2025-03-15 08:45"},
+    {"lat": -4.5621,  "lon": -74.1834, "confidence": 0.72, "detected_at": "2025-03-15 09:10"},
+    {"lat": -6.3217,  "lon": -76.5409, "confidence": 0.63, "detected_at": "2025-03-15 09:33"},
+    {"lat": -7.1562,  "lon": -75.8823, "confidence": 0.55, "detected_at": "2025-03-15 09:55"},
+    {"lat": -3.2984,  "lon": -72.6741, "confidence": 0.88, "detected_at": "2025-03-16 07:18"},
+    {"lat": -8.8043,  "lon": -74.9215, "confidence": 0.77, "detected_at": "2025-03-16 08:02"},
+    {"lat": -13.5317, "lon": -72.8818, "confidence": 0.69, "detected_at": "2025-03-17 10:05"},
+    {"lat": -11.2451, "lon": -75.3394, "confidence": 0.82, "detected_at": "2025-03-17 10:30"},
+    {"lat": -14.0672, "lon": -73.4129, "confidence": 0.58, "detected_at": "2025-03-17 11:00"},
+    {"lat": -12.5934, "lon": -70.0817, "confidence": 0.95, "detected_at": "2025-03-18 06:45"},
+    {"lat": -11.8763, "lon": -71.3452, "confidence": 0.87, "detected_at": "2025-03-18 07:20"},
+    {"lat": -13.1289, "lon": -69.6543, "confidence": 0.74, "detected_at": "2025-03-18 07:55"},
+    {"lat": -0.1834,  "lon": -75.8712, "confidence": 0.61, "detected_at": "2025-03-19 09:00"},
+    {"lat": -1.5423,  "lon": -77.1234, "confidence": 0.79, "detected_at": "2025-03-19 09:40"}
+  ]
+}

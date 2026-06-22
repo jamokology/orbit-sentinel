@@ -1,7 +1,12 @@
+import json
+from pathlib import Path
+
 import folium
 import pandas as pd
 import streamlit as st
 from streamlit_folium import st_folium
+
+DATA_FILE = Path(__file__).parent.parent / "data" / "detections.json"
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 TEXTS = {
@@ -29,6 +34,7 @@ TEXTS = {
         "last_update":    "Último lote",
         "data_status":    "Estado",
         "status_demo":    "Demo — datos simulados",
+        "status_live":    "En vivo — datos reales",
         "filters_title":  "⚙️ Filtros",
     },
     "en": {
@@ -55,28 +61,19 @@ TEXTS = {
         "last_update":    "Last batch",
         "data_status":    "Status",
         "status_demo":    "Demo — simulated data",
+        "status_live":    "Live — real data",
         "filters_title":  "⚙️ Filters",
     },
 }
 
 # ── Detection data ────────────────────────────────────────────────────────────
-DETECTIONS = pd.DataFrame([
-    {"lat": -3.7491,  "lon": -73.2538, "confidence": 0.91, "detected_at": "2025-03-15 08:22"},
-    {"lat": -5.1843,  "lon": -75.0152, "confidence": 0.84, "detected_at": "2025-03-15 08:45"},
-    {"lat": -4.5621,  "lon": -74.1834, "confidence": 0.72, "detected_at": "2025-03-15 09:10"},
-    {"lat": -6.3217,  "lon": -76.5409, "confidence": 0.63, "detected_at": "2025-03-15 09:33"},
-    {"lat": -7.1562,  "lon": -75.8823, "confidence": 0.55, "detected_at": "2025-03-15 09:55"},
-    {"lat": -3.2984,  "lon": -72.6741, "confidence": 0.88, "detected_at": "2025-03-16 07:18"},
-    {"lat": -8.8043,  "lon": -74.9215, "confidence": 0.77, "detected_at": "2025-03-16 08:02"},
-    {"lat": -13.5317, "lon": -72.8818, "confidence": 0.69, "detected_at": "2025-03-17 10:05"},
-    {"lat": -11.2451, "lon": -75.3394, "confidence": 0.82, "detected_at": "2025-03-17 10:30"},
-    {"lat": -14.0672, "lon": -73.4129, "confidence": 0.58, "detected_at": "2025-03-17 11:00"},
-    {"lat": -12.5934, "lon": -70.0817, "confidence": 0.95, "detected_at": "2025-03-18 06:45"},
-    {"lat": -11.8763, "lon": -71.3452, "confidence": 0.87, "detected_at": "2025-03-18 07:20"},
-    {"lat": -13.1289, "lon": -69.6543, "confidence": 0.74, "detected_at": "2025-03-18 07:55"},
-    {"lat": -0.1834,  "lon": -75.8712, "confidence": 0.61, "detected_at": "2025-03-19 09:00"},
-    {"lat": -1.5423,  "lon": -77.1234, "confidence": 0.79, "detected_at": "2025-03-19 09:40"},
-])
+@st.cache_data(ttl=3600)
+def load_detections() -> tuple[pd.DataFrame, str, bool]:
+    raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    df = pd.DataFrame(raw["detections"])
+    return df, raw.get("generated_at", ""), raw.get("is_demo", True)
+
+DETECTIONS, _GENERATED_AT, _IS_DEMO = load_detections()
 
 CONFIDENCE_COLORS = {
     "high":   {"hex": "#E53935", "folium": "red"},
@@ -251,12 +248,15 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(f"**{t['data_status']}**")
+    status_label = t["status_demo"] if _IS_DEMO else t["status_live"]
+    status_color = "#8b949e" if _IS_DEMO else "#3fb950"
     st.markdown(
-        f'<span style="color:#3fb950;font-size:0.85rem">● {t["status_demo"]}</span>',
+        f'<span style="color:{status_color};font-size:0.85rem">● {status_label}</span>',
         unsafe_allow_html=True,
     )
+    last_update = _GENERATED_AT[:10] if _GENERATED_AT else "—"
     st.markdown(
-        f'<span style="color:#8b949e;font-size:0.8rem">{t["last_update"]}: 2025-03-19</span>',
+        f'<span style="color:#8b949e;font-size:0.8rem">{t["last_update"]}: {last_update}</span>',
         unsafe_allow_html=True,
     )
 
