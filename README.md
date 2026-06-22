@@ -1,4 +1,4 @@
-# Orbit Sentinel — 違法滑走路検出システム
+# GeoVigil Analytics — 違法滑走路検出システム
 
 衛星画像AIによるペルー国内の違法滑走路候補地の検出・可視化Webアプリ（MVP）
 

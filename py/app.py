@@ -6,8 +6,8 @@ from streamlit_folium import st_folium
 # ── i18n ─────────────────────────────────────────────────────────────────────
 TEXTS = {
     "es": {
-        "page_title":     "Orbit Sentinel",
-        "title":          "Orbit Sentinel",
+        "page_title":     "GeoVigil Analytics",
+        "title":          "GeoVigil Analytics",
         "subtitle":       "Detección de pistas clandestinas · Perú",
         "caption":        "Resultados del análisis por IA de imágenes satelitales",
         "filter_header":  "Filtros",
@@ -32,8 +32,8 @@ TEXTS = {
         "filters_title":  "⚙️ Filtros",
     },
     "en": {
-        "page_title":     "Orbit Sentinel",
-        "title":          "Orbit Sentinel",
+        "page_title":     "GeoVigil Analytics",
+        "title":          "GeoVigil Analytics",
         "subtitle":       "Clandestine airstrip detection · Peru",
         "caption":        "AI satellite imagery analysis results",
         "filter_header":  "Filters",
@@ -95,7 +95,7 @@ def confidence_tier(conf: float) -> str:
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Orbit Sentinel",
+    page_title="GeoVigil Analytics",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed",   # モバイルでは初期状態で閉じる

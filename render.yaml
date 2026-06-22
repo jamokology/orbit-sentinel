@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: orbit-sentinel
+    name: geovigil-analytics
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: streamlit run py/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true

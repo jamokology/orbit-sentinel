@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Orbit Sentinel</title>
+  <title>GeoVigil Analytics</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
@@ -345,7 +345,7 @@
       <div class="header-row">
         <button class="btn-icon" onclick="toggleSidebar()" id="btn-menu">☰</button>
         <div class="header-center">
-          <div class="title">🛰️ Orbit Sentinel</div>
+          <div class="title">🛰️ GeoVigil Analytics</div>
           <div class="subtitle" data-i18n="subtitle">Detección de pistas clandestinas · Perú</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch">
@@ -820,21 +820,21 @@ function copyCoord(event, coord, btnId) {
 
 function downloadGpx(event, lat, lon, conf, date, district) {
   event.stopPropagation();
-  const name = `Orbit Sentinel ${conf}%`;
+  const name = `GeoVigil Analytics ${conf}%`;
   const desc = `${conf}% | ${date} | ${district}`;
   const xml  = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Orbit Sentinel" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="GeoVigil Analytics" xmlns="http://www.topografix.com/GPX/1/1">
   <wpt lat="${lat}" lon="${lon}">
     <name>${name}</name>
     <desc>${desc}</desc>
   </wpt>
 </gpx>`;
-  triggerDownload(xml, `orbit-sentinel_${lat}_${lon}.gpx`, "application/gpx+xml");
+  triggerDownload(xml, `geovigil-analytics_${lat}_${lon}.gpx`, "application/gpx+xml");
 }
 
 function downloadKml(event, lat, lon, conf, date, district) {
   event.stopPropagation();
-  const name = `Orbit Sentinel ${conf}%`;
+  const name = `GeoVigil Analytics ${conf}%`;
   const desc = `${conf}% | ${date} | ${district}`;
   const xml  = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
@@ -846,7 +846,7 @@ function downloadKml(event, lat, lon, conf, date, district) {
     </Placemark>
   </Document>
 </kml>`;
-  triggerDownload(xml, `orbit-sentinel_${lat}_${lon}.kml`, "application/vnd.google-earth.kml+xml");
+  triggerDownload(xml, `geovigil-analytics_${lat}_${lon}.kml`, "application/vnd.google-earth.kml+xml");
 }
 
 function triggerDownload(content, filename, mime) {
