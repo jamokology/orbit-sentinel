@@ -516,7 +516,7 @@ function tierColor(conf) {
 }
 
 // ── Map ────────────────────────────────────────────────────────────────────
-const map = L.map("map", { zoomControl: true, tap: true, renderer: L.svg({ padding: 0.5 }) }).setView([-9.19, -75.0], 6);
+const map = L.map("map", { zoomControl: true, tap: true, renderer: L.svg({ padding: 1.0 }) }).setView([-9.19, -75.0], 6);
 const TILES = {
   satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
     attribution: '© <a href="https://www.esri.com">Esri</a>', maxZoom: 19,
