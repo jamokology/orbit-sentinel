@@ -36,6 +36,11 @@ TEXTS = {
         "status_demo":    "Demo — datos simulados",
         "status_live":    "En vivo — datos reales",
         "filters_title":  "⚙️ Filtros",
+        "legend_active":       "Activo (confirmado en 3 meses)",
+        "legend_unconfirmed":  "No confirmado (3–6 meses)",
+        "popup_first":    "Primera detección",
+        "popup_last":     "Última confirmación",
+        "popup_source":   "Fuente",
     },
     "en": {
         "page_title":     "GeoVigil Analytics",
@@ -62,6 +67,11 @@ TEXTS = {
         "data_status":    "Status",
         "status_demo":    "Demo — simulated data",
         "status_live":    "Live — real data",
+        "legend_active":       "Active (confirmed within 3 months)",
+        "legend_unconfirmed":  "Unconfirmed (3–6 months)",
+        "popup_first":    "First detected",
+        "popup_last":     "Last confirmed",
+        "popup_source":   "Source",
         "filters_title":  "⚙️ Filters",
     },
 }
@@ -204,6 +214,27 @@ st.markdown("""
 /* ── Divider ── */
 hr { border-color: #30363d !important; }
 
+/* ── Status dot (active / unconfirmed) ── */
+.status-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.status-dot-active {
+    background: #3fb950;
+    box-shadow: 0 0 0 0 rgba(63,185,80,0.6);
+    animation: pulse-green 2s infinite;
+}
+.status-dot-unconfirmed {
+    background: #d29922;
+}
+@keyframes pulse-green {
+    0%   { box-shadow: 0 0 0 0 rgba(63,185,80,0.6); }
+    70%  { box-shadow: 0 0 0 6px rgba(63,185,80,0); }
+    100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); }
+}
+
 /* ── Mobile breakpoint (<640px) ── */
 @media (max-width: 640px) {
     [data-testid="stMain"] { padding: 0.5rem 0.6rem 2rem; }
@@ -240,6 +271,19 @@ with st.sidebar:
             f'<span class="legend-dot" style="background:{color}"></span>{t[label_key]}',
             unsafe_allow_html=True,
         )
+
+    st.markdown("---")
+    st.markdown("**Status**")
+    st.markdown(
+        '<span class="status-dot status-dot-active" style="margin-right:7px;vertical-align:middle"></span>'
+        f'{t["legend_active"]}',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<span class="status-dot status-dot-unconfirmed" style="margin-right:7px;vertical-align:middle"></span>'
+        f'{t["legend_unconfirmed"]}',
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
     total = len(DETECTIONS)
@@ -300,18 +344,34 @@ m = folium.Map(
 # タッチ操作用にピンチズーム・タップポップアップを有効化
 m.options["tap"] = True
 
+STATUS_DOT = {
+    "active":      '<span class="status-dot status-dot-active"></span>',
+    "unconfirmed": '<span class="status-dot status-dot-unconfirmed"></span>',
+}
+
 for _, row in df_filtered.iterrows():
     tier = confidence_tier(row["confidence"])
     color = CONFIDENCE_COLORS[tier]["folium"]
     hex_color = CONFIDENCE_COLORS[tier]["hex"]
+    status = row.get("status", "active")
+    dot = STATUS_DOT.get(status, "")
+    source = row.get("source", "—")
+    confirmed_at = row.get("confirmed_at", row["detected_at"])
     popup_html = f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-                font-size:14px;min-width:190px;padding:4px 2px">
-        <b style="font-size:15px;color:{hex_color}">{row['confidence']*100:.1f}%</b>
-        <span style="font-size:11px;color:#666;margin-left:6px">{t['popup_conf']}</span>
+                font-size:14px;min-width:210px;padding:4px 2px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span>
+                <b style="font-size:15px;color:{hex_color}">{row['confidence']*100:.1f}%</b>
+                <span style="font-size:11px;color:#666;margin-left:6px">{t['popup_conf']}</span>
+            </span>
+            {dot}
+        </div>
         <hr style="margin:8px 0;border-color:#e0e0e0">
-        <div style="line-height:1.8">
-            📅 {row['detected_at']}<br>
+        <div style="line-height:1.9;font-size:13px">
+            📅 <b>{t['popup_first']}:</b> {row['detected_at']}<br>
+            🔄 <b>{t['popup_last']}:</b> {confirmed_at}<br>
+            🛰️ <b>{t['popup_source']}:</b> {source}<br>
             📍 {row['lat']:.4f}, {row['lon']:.4f}
         </div>
     </div>

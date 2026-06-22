@@ -208,6 +208,22 @@ Fully regrown     → not detected      → status: inactive (after 6 months)
 
 ---
 
+## Dashboard UI — Status Indicator
+
+Each detection popup card displays a small circular status indicator in the top-right corner, visually separating **freshness** (status) from **confidence** (marker colour).
+
+| Indicator | Colour | Animation | Meaning |
+|---|---|---|---|
+| ● | Green `#3fb950` | Pulsing glow | `active` — confirmed within 3 months |
+| ● | Yellow `#d29922` | Static | `unconfirmed` — not re-confirmed for 3–6 months |
+| — | — | — | `inactive` — hidden from map |
+
+The same indicators appear in the sidebar legend alongside the existing confidence colour legend.
+
+**Design rationale:** Marker colour already encodes confidence level (red / orange / blue). Using a separate small dot for status avoids overloading a single visual channel and keeps both dimensions readable at a glance.
+
+---
+
 ## Web Dashboard (Cloudflare Pages)
 
 - **Framework:** Streamlit (`py/app.py`)
