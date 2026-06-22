@@ -147,9 +147,11 @@ A **repository-scoped Deploy Key** (SSH) or **Fine-grained Personal Access Token
     {
       "lat": -3.7491,
       "lon": -73.2538,
-      "confidence": 0.91,
-      "detected_at": "2026-06-22 02:15",
-      "source": "sentinel2"
+      "confidence": 0.93,
+      "detected_at": "2026-01-10 08:22",
+      "confirmed_at": "2026-06-22 02:15",
+      "status": "active",
+      "source": "ensemble"
     }
   ]
 }
@@ -160,9 +162,49 @@ A **repository-scoped Deploy Key** (SSH) or **Fine-grained Personal Access Token
 | `generated_at` | ISO 8601 string | Pipeline execution timestamp |
 | `is_demo` | boolean | `true` for demo/test data, `false` for real detections |
 | `lat` / `lon` | float | WGS84 coordinates of detected airstrip centroid |
-| `confidence` | float (0–1) | Model confidence score (post-ensemble) |
-| `detected_at` | string | Imagery acquisition timestamp |
+| `confidence` | float (0–1) | Model confidence score (post-ensemble), updated each time re-confirmed |
+| `detected_at` | string | Timestamp of first detection |
+| `confirmed_at` | string | Timestamp of most recent detection (updated each pipeline run) |
+| `status` | string | See lifecycle table below |
 | `source` | string | `"sentinel2"`, `"nicfi"`, or `"ensemble"` |
+
+---
+
+## Detection Record Lifecycle
+
+Each detection record persists in `detections.json` and transitions through the following states:
+
+| Status | Condition | Map display | Duplicate check |
+|---|---|---|---|
+| `active` | Confirmed within the past 3 months | Red marker, fully opaque | Yes |
+| `unconfirmed` | Not re-confirmed for 3–6 months | Grey marker, semi-transparent | Yes |
+| `inactive` | Not re-confirmed for 6+ months | Hidden | **No** |
+
+### Duplicate detection logic
+
+When a new detection arrives, the pipeline checks whether an existing record lies within **500 m** of the new coordinates:
+
+- **Match found (`active` or `unconfirmed`):** Update `confirmed_at`, `confidence`, and `source`; keep `detected_at` unchanged.
+- **Match found (`inactive`):** Treat as a new independent detection — the airstrip may have been re-opened or a new one built nearby.
+- **No match:** Insert as a new record with `status: "active"`.
+
+### Why `inactive` records are retained
+
+Records are never deleted. Setting `status: "inactive"` rather than removing the record serves two purposes:
+
+1. **Historical record:** Provides a long-term dataset of airstrip activity (useful for reporting and trend analysis).
+2. **Prevents false re-detection:** Ensures that a new nearby detection is not incorrectly merged with a stale record from a different operational period.
+
+### Confidence decay and natural abandonment
+
+As a clandestine airstrip is abandoned, vegetation gradually reclaims the cleared area. This is reflected naturally in the model confidence score over successive pipeline runs:
+
+```
+Freshly cleared   → confidence 0.9+  → status: active
+Grass growing in  → confidence 0.7–0.8
+Partially covered → confidence 0.5–0.6 → status: unconfirmed
+Fully regrown     → not detected      → status: inactive (after 6 months)
+```
 
 ---
 
