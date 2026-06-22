@@ -221,7 +221,7 @@
     }
     .map-ctrl.active { border-color: #4da6e8 !important; box-shadow: 0 0 0 1px rgba(77,166,232,0.3) !important; }
     .map-ctrl-btn {
-      display: flex; align-items: center; gap: 7px;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
       background: transparent; border: none;
       color: var(--text); font-family: 'Inter', sans-serif;
       font-size: 0.82rem; padding: 8px 12px;
@@ -436,6 +436,9 @@ const TEXTS = {
     rivers_loading:       "Cargando ríos…",
     rivers_error:         "⚠ Error al cargar ríos",
     rivers_label:         "Ríos",
+    roads_loading:        "Cargando vías…",
+    roads_error:          "⚠ Error al cargar vías",
+    roads_label:          "Vías",
   },
   en: {
     filter_header:        "Minimum confidence",
@@ -469,6 +472,9 @@ const TEXTS = {
     rivers_loading:       "Loading rivers…",
     rivers_error:         "⚠ Failed to load rivers",
     rivers_label:         "Rivers",
+    roads_loading:        "Loading roads…",
+    roads_error:          "⚠ Failed to load roads",
+    roads_label:          "Roads",
   },
 };
 let lang = "es";
@@ -549,6 +555,14 @@ const RIVER_SVG = `<svg width="20" height="14" viewBox="0 0 20 14" fill="none" s
   <path d="M1 10 C4 7,7 13,10 10 C13 7,16 13,19 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
 
+const ROAD_SVG = `<svg width="20" height="14" viewBox="0 0 20 14" fill="none" style="flex-shrink:0">
+  <line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <line x1="13" y1="1" x2="13" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <line x1="7" y1="4" x2="13" y2="4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="1.5 2"/>
+  <line x1="7" y1="7" x2="13" y2="7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="1.5 2"/>
+  <line x1="7" y1="10" x2="13" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="1.5 2"/>
+</svg>`;
+
 // ── Map controls (topright) ───────────────────────────────────────────────
 // ZoomIn + ZoomOut share ONE container using CSS grid overlay → cross-fade,
 // no layout shift. Rivers is a separate control below.
@@ -588,8 +602,22 @@ const RiverControl = L.Control.extend({
   },
 });
 
+const RoadControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
+    const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
+    btn.id = 'btn-roads';
+    btn.innerHTML = ROAD_SVG + '<span id="road-btn-label"></span>';
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.on(btn, 'click', () => toggleRoads());
+    return wrap;
+  },
+});
+
 const zoomCtrl  = new ZoomControl().addTo(map);
 const riverCtrl = new RiverControl().addTo(map);
+const roadCtrl  = new RoadControl().addTo(map);
 
 function updateZoomBtn() {
   const t = TEXTS[lang];
@@ -599,6 +627,8 @@ function updateZoomBtn() {
   if (inTxt)    inTxt.textContent    = t.zoom_in;
   if (outTxt)   outTxt.textContent   = t.zoom_out;
   if (riverLbl) riverLbl.textContent = t.rivers_label;
+  const roadLbl = document.getElementById('road-btn-label');
+  if (roadLbl) roadLbl.textContent = t.roads_label;
 }
 
 function syncZoomControls() {
@@ -1177,6 +1207,27 @@ async function toggleRivers() {
     },
   }).addTo(map);
   riverLayer.bringToBack();
+}
+
+// ── Roads (ESRI World Transportation tile overlay) ─────────────────────────
+// Transparent tile layer — works at any zoom, no file size limit
+let roadsVisible = false;
+let roadLayer    = null;
+
+function toggleRoads() {
+  roadsVisible = !roadsVisible;
+  const ctrlEl = roadCtrl.getContainer();
+  if (ctrlEl) ctrlEl.classList.toggle('active', roadsVisible);
+
+  if (!roadsVisible) {
+    if (roadLayer) { map.removeLayer(roadLayer); roadLayer = null; }
+    return;
+  }
+
+  roadLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+    { attribution: '© <a href="https://www.esri.com">Esri</a>', maxZoom: 19, opacity: 0.85 }
+  ).addTo(map);
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
