@@ -217,6 +217,7 @@
       border: 1.5px solid rgba(48,54,61,0.7) !important;
       border-radius: 10px !important;
       padding: 0 !important; overflow: hidden;
+      min-width: 126px;
     }
     .map-ctrl.active { border-color: #4da6e8 !important; box-shadow: 0 0 0 1px rgba(77,166,232,0.3) !important; }
     .map-ctrl-btn {
@@ -233,7 +234,7 @@
     .map-ctrl-btn .ctrl-icon { font-size: 1.05rem; }
 
     /* ZoomIn/ZoomOut cross-fade within one container (CSS grid overlay trick) */
-    .zoom-swap { display: grid; }
+    .zoom-swap { display: grid; width: 100%; }
     .zoom-swap > * {
       grid-area: 1 / 1;         /* both occupy same cell → overlap */
       transition: opacity 0.2s ease;
