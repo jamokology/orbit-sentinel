@@ -156,6 +156,77 @@
     }
     .about-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 24px; }
 
+    /* ── Mobile splash ── */
+    .splash-mobile-inner { display: none; flex-direction: column; align-items: center; width: 100%; padding: 0 24px; }
+    .splash-mobile-logo {
+      width: min(64vw, 260px); height: auto;
+      animation: splashFlare 2.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .splash-mobile-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(2rem, 10vw, 3rem); font-weight: 600;
+      letter-spacing: 0.06em; color: var(--text); margin-top: 20px;
+      animation: fadeUp 1.8s ease both;
+      text-align: center;
+    }
+    .splash-mobile-sub {
+      font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--muted); margin-top: 8px; text-align: center;
+      animation: fadeUp 2s ease both;
+    }
+
+    @media (max-width: 640px) {
+      /* Splash: swap to portrait layout */
+      .splash-desktop  { display: none !important; }
+      .splash-divider  { width: min(72vw, 300px); }
+      .splash-mobile-inner { display: flex; }
+      /* Ken Burns disabled on mobile (performance) */
+      .splash-img-wrap { animation: none; }
+
+      /* Layout: sidebar is an overlay, not inline */
+      .layout { position: relative; }
+      .sidebar {
+        position: absolute; top: 0; bottom: 0; left: 0;
+        z-index: 3000;
+        width: 0 !important; /* override inline style */
+        border-right: none;
+      }
+      .sidebar.open {
+        width: 100vw !important;
+      }
+      /* Dim overlay behind open sidebar on mobile */
+      .sidebar.open::after {
+        content: ''; position: fixed; inset: 0; z-index: -1;
+        background: rgba(0,0,0,0.55);
+        pointer-events: none;
+      }
+
+      /* Map controls: icon-only (hide text labels) */
+      .map-ctrl-btn .ctrl-label { display: none; }
+      .map-ctrl-btn { padding: 10px 12px; min-width: 42px; justify-content: center; }
+
+      /* Zoom controls: larger touch targets */
+      .leaflet-control-zoom a { width: 36px !important; height: 36px !important; line-height: 36px !important; font-size: 20px !important; }
+
+      /* Cards */
+      .card { width: 170px; padding: 10px; }
+
+      /* About inner: tighter padding */
+      .about-inner { padding: 52px 20px 56px; }
+      .about-logo { width: 120px; }
+
+      /* Settings modal: full-width on very small screens */
+      .modal-box { width: min(94vw, 380px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .splash-img { animation: none; opacity: 1; filter: none; }
+      .splash-img-wrap { animation: none; }
+      .splash-divider { animation: none; transform: scaleX(1); opacity: 1; }
+      .splash-skip { animation: none; opacity: 1; letter-spacing: 0.2em; }
+      .splash-mobile-logo { animation: none; opacity: 1; filter: none; }
+    }
+
     /* ── Map area (relative for card overlay) ── */
     .map-area { flex: 1; position: relative; min-height: 0; }
     #map { position: absolute; inset: 0; }
@@ -500,8 +571,17 @@
 </head>
 <body>
 <div class="splash" id="splash">
-  <div class="splash-img-wrap">
-    <img src="geovigil_analytics_logo_black_large.png" alt="GeoVigil Analytics" class="splash-img" draggable="false">
+  <!-- Desktop: wide banner -->
+  <div class="splash-desktop">
+    <div class="splash-img-wrap">
+      <img src="geovigil_analytics_logo_black_large.png" alt="GeoVigil Analytics" class="splash-img" draggable="false">
+    </div>
+  </div>
+  <!-- Mobile: square logo + title -->
+  <div class="splash-mobile-inner">
+    <img src="geovigil_analytics_logo_transparent_forblack.png" alt="GeoVigil Analytics" class="splash-mobile-logo" draggable="false">
+    <div class="splash-mobile-title">GeoVigil Analytics</div>
+    <div class="splash-mobile-sub" id="splash-sub">Detección de pistas clandestinas · Perú</div>
   </div>
   <div class="splash-divider"></div>
   <div class="splash-skip" onclick="dismissSplash()">TAP TO ENTER</div>
@@ -889,6 +969,9 @@ function applyLang() {
   // About close button
   const abClose = document.querySelector(".about-close");
   if (abClose) abClose.textContent = lang === "es" ? "✕ Cerrar" : "✕ Close";
+  // Mobile splash subtitle
+  const splashSub = document.getElementById("splash-sub");
+  if (splashSub) splashSub.textContent = t.subtitle;
   document.documentElement.lang = lang;
   refreshSelectLabels();
   forceRender();
@@ -986,11 +1069,11 @@ const ZoomControl = L.Control.extend({
 
     const btnIn  = L.DomUtil.create('button', 'map-ctrl-btn', grid);
     btnIn.id = 'btn-zoom-in';
-    btnIn.innerHTML = '<span class="ctrl-icon">🔍</span><span id="zoom-in-text"></span>';
+    btnIn.innerHTML = '<span class="ctrl-icon">🔍</span><span id="zoom-in-text" class="ctrl-label"></span>';
 
     const btnOut = L.DomUtil.create('button', 'map-ctrl-btn hidden-btn', grid);
     btnOut.id = 'btn-zoom-out';
-    btnOut.innerHTML = '<span class="ctrl-icon">🌍</span><span id="zoom-out-text"></span>';
+    btnOut.innerHTML = '<span class="ctrl-icon">🌍</span><span id="zoom-out-text" class="ctrl-label"></span>';
 
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btnIn,  'click', () => zoomToSelected());
@@ -1005,7 +1088,7 @@ const RiverControl = L.Control.extend({
     const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
     const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
     btn.id = 'btn-rivers';
-    btn.innerHTML = RIVER_SVG + '<span id="river-btn-label"></span>';
+    btn.innerHTML = RIVER_SVG + '<span id="river-btn-label" class="ctrl-label"></span>';
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btn, 'click', () => toggleRivers());
     return wrap;
@@ -1018,7 +1101,7 @@ const RoadControl = L.Control.extend({
     const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
     const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
     btn.id = 'btn-roads';
-    btn.innerHTML = ROAD_SVG + '<span id="road-btn-label"></span>';
+    btn.innerHTML = ROAD_SVG + '<span id="road-btn-label" class="ctrl-label"></span>';
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btn, 'click', () => toggleRoads());
     return wrap;
@@ -1031,7 +1114,7 @@ const BorderControl = L.Control.extend({
     const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl active');
     const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
     btn.id = 'btn-borders';
-    btn.innerHTML = BORDER_SVG + '<span id="border-btn-label"></span>';
+    btn.innerHTML = BORDER_SVG + '<span id="border-btn-label" class="ctrl-label"></span>';
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btn, 'click', () => toggleBorders());
     return wrap;
@@ -1044,7 +1127,7 @@ const SettingsControl = L.Control.extend({
     const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
     const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
     btn.id = 'btn-settings-map';
-    btn.innerHTML = GEAR_SVG + '<span id="settings-btn-label"></span>';
+    btn.innerHTML = GEAR_SVG + '<span id="settings-btn-label" class="ctrl-label"></span>';
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btn, 'click', () => toggleSettings());
     return wrap;
