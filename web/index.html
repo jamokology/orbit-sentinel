@@ -529,12 +529,11 @@
     /* Dramatic brightness-flare reveal on the image */
     .splash-img {
       width: 100%; height: auto; display: block;
-      animation: splashFlare 7.0s linear both;
+      animation: splashFlare 7.5s linear both;
     }
     @keyframes splashFlare {
-      0%   { opacity: 0;   filter: brightness(0)    blur(14px); }
-      14%  { opacity: 1;   filter: brightness(2.8)  blur(0px);  }
-      38%  { opacity: 1;   filter: brightness(1.5)  blur(0px);  }
+      0%   { opacity: 0;   filter: brightness(0)    blur(10px); }
+      6.7% { opacity: 1;   filter: brightness(2.8)  blur(0px);  }
       100% { opacity: 1;   filter: brightness(1.12) blur(0px);  }
     }
 
