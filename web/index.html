@@ -41,16 +41,20 @@
 
     /* ── Sidebar ── */
     .sidebar {
-      width: 0; flex-shrink: 0;
-      background: var(--surface);
-      border-right: 0px solid var(--border);
+      position: absolute; top: 0; bottom: 0; left: 0;
+      width: 0; z-index: 3000;
+      background: rgba(10, 14, 20, 0.78);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid rgba(255,255,255,0.07);
       display: flex; flex-direction: column;
       overflow: hidden;
-      transition: width 0.25s ease, border-width 0.25s ease;
-      z-index: 300;
+      transition: width 0.27s ease;
     }
-    .sidebar.open { width: 280px; border-right-width: 1px; overflow-y: auto; }
+    .sidebar.open { width: 280px; overflow-y: auto; }
     .sidebar-inner { min-width: 280px; padding: 20px 18px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── Layout: relative so sidebar can position absolute within it ── */
+    .layout { position: relative; }
 
     /* ── Main ── */
     .main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -79,7 +83,7 @@
 
     /* ── Menu control: icon-only, fixed small size ── */
     .map-ctrl-menu { width: auto !important; }
-    .map-ctrl-menu .map-ctrl-btn { padding: 8px 11px; min-width: 0; }
+    .map-ctrl-menu .map-ctrl-btn { padding: 9px 14px; min-width: 0; font-size: 1rem; }
 
     /* ── Settings toggle group ── */
     .toggle-group { display: flex; gap: 6px; }
@@ -192,7 +196,7 @@
     }
     .splash-mobile-sub {
       font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase;
-      color: var(--muted); margin-top: 8px; text-align: center;
+      color: var(--muted); margin-top: 8px; margin-bottom: 28px; text-align: center;
       animation: fadeUp 2s ease both;
     }
 
@@ -204,23 +208,8 @@
       /* Ken Burns disabled on mobile (performance) */
       .splash-img-wrap { animation: none; }
 
-      /* Layout: sidebar is an overlay, not inline */
-      .layout { position: relative; }
-      .sidebar {
-        position: absolute; top: 0; bottom: 0; left: 0;
-        z-index: 3000;
-        width: 0 !important; /* override inline style */
-        border-right: none;
-      }
-      .sidebar.open {
-        width: 100vw !important;
-      }
-      /* Dim overlay behind open sidebar on mobile */
-      .sidebar.open::after {
-        content: ''; position: fixed; inset: 0; z-index: -1;
-        background: rgba(0,0,0,0.55);
-        pointer-events: none;
-      }
+      /* Mobile: sidebar full-width */
+      .sidebar.open { width: 100vw; }
 
       /* Map controls: icon-only (hide text labels) */
       .map-ctrl-btn .ctrl-label { display: none; }
@@ -521,16 +510,28 @@
       to   { transform: scale(1.05); }
     }
 
+    /* Top/bottom fade-to-black vignette on splash image */
+    .splash-img-wrap::after {
+      content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+      background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.70) 0%,
+        rgba(0,0,0,0.0)  18%,
+        rgba(0,0,0,0.0)  82%,
+        rgba(0,0,0,0.70) 100%
+      );
+    }
+
     /* Dramatic brightness-flare reveal on the image */
     .splash-img {
       width: 100%; height: auto; display: block;
-      animation: splashFlare 2.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation: splashFlare 4.0s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     @keyframes splashFlare {
-      0%   { opacity: 0;   filter: brightness(0)   blur(14px); }
-      28%  { opacity: 1;   filter: brightness(2.8) blur(0px);  }
-      55%  { opacity: 1;   filter: brightness(1.15) blur(0px); }
-      100% { opacity: 1;   filter: brightness(1)   blur(0px);  }
+      0%   { opacity: 0;   filter: brightness(0)    blur(14px); }
+      18%  { opacity: 1;   filter: brightness(2.8)  blur(0px);  }
+      45%  { opacity: 1;   filter: brightness(1.15) blur(0px);  }
+      100% { opacity: 1;   filter: brightness(1)    blur(0px);  }
     }
 
     /* Divider expands from centre outward */
@@ -1023,7 +1024,6 @@ function tierColor(conf) {
 
 // ── Map ────────────────────────────────────────────────────────────────────
 const map = L.map("map", { zoomControl: false, tap: true, renderer: L.svg({ padding: 1.0 }) }).setView([-9.19, -75.0], 6);
-L.control.zoom({ position: 'bottomright' }).addTo(map);
 const TILES = {
   satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
     attribution: '© <a href="https://www.esri.com">Esri</a>', maxZoom: 19,
