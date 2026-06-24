@@ -65,6 +65,11 @@
     }
     .sidebar-actions .btn-header { flex: 1; font-size: 0.8rem; gap: 5px; }
 
+    /* ── Settings toggle group ── */
+    .toggle-group { display: flex; gap: 6px; }
+    .toggle-group .btn-header { flex: 1; text-align: center; opacity: 0.45; transition: opacity 0.2s, background 0.2s; }
+    .toggle-group .btn-header.active { opacity: 1; background: rgba(88,166,255,0.18); border-color: var(--accent); }
+
     /* ── Settings modal ── */
     .modal-overlay {
       position: fixed; inset: 0; z-index: 5000;
@@ -359,6 +364,7 @@
     .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
     .metric-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
     .metric-label { font-size: 0.73rem; color: var(--muted); margin-bottom: 4px; }
+    .metric-card { text-align: center; }
     .metric-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
     .status { display: flex; flex-direction: column; gap: 4px; }
     .status-dot { color: var(--green); font-size: 0.82rem; }
@@ -698,16 +704,20 @@
     <div class="modal-row">
       <div class="modal-row-label">
         <span data-i18n="settings_lang">Idioma</span>
-        <small data-i18n="settings_lang_sub">Cambiar entre Español e Inglés</small>
       </div>
-      <button class="btn-header" id="btn-lang-settings" onclick="toggleLang()">🇬🇧 English</button>
+      <div class="toggle-group">
+        <button class="btn-header active" id="btn-lang-es" onclick="setLang('es')">Español</button>
+        <button class="btn-header"        id="btn-lang-en" onclick="setLang('en')">English</button>
+      </div>
     </div>
     <div class="modal-row">
       <div class="modal-row-label">
         <span data-i18n="settings_map">Tipo de mapa</span>
-        <small data-i18n="settings_map_sub">Satélite o callejero</small>
       </div>
-      <button class="btn-header" id="btn-tile-settings" onclick="toggleMapTile()">🛰 Satélite</button>
+      <div class="toggle-group">
+        <button class="btn-header active" id="btn-tile-satellite" onclick="setTile('satellite')" data-i18n-tile="satellite">🛰 Satélite</button>
+        <button class="btn-header"        id="btn-tile-street"    onclick="setTile('street')"    data-i18n-tile="street">🗺 Calles</button>
+      </div>
     </div>
   </div>
 </div>
@@ -850,7 +860,7 @@ const TEXTS = {
     about_title:          "GeoVigil Analytics",
     about_sub:            "Sistema de Detección de Pistas Clandestinas · Perú",
     about_s1_h:           "¿Qué es GeoVigil Analytics?",
-    about_s1_p:           "Plataforma de inteligencia geoespacial desarrollada para la Oficina de las Naciones Unidas contra la Droga y el Delito (UNODC). Utiliza imágenes satelitales de alta resolución y modelos de inteligencia artificial para detectar automáticamente pistas de aterrizaje clandestinas en la Amazonía peruana.",
+    about_s1_p:           "Plataforma de inteligencia geoespacial que utiliza imágenes satelitales de alta resolución y modelos de inteligencia artificial para detectar automáticamente pistas de aterrizaje clandestinas en la Amazonía peruana.",
     about_s2_h:           "Estados de detección",
     about_s2_active:      "Activo — Detectado o redetectado en los últimos 3 meses.",
     about_s2_unconf:      "No confirmado — Sin nueva detección en los últimos 3–6 meses.",
@@ -864,10 +874,10 @@ const TEXTS = {
     about_s4_s2:          "Resolución 10 m · Revisita cada 5 días · Filtrado ≤ 20% de nubosidad",
     about_s4_pl:          "Resolución 4.77 m · Mosaico mensual libre de nubes · Cobertura de bosques tropicales",
     about_s5_h:           "Metodología",
-    about_s5_p1:          "Dos modelos YOLO independientes, entrenados con imágenes de cada fuente respectiva, generan detecciones por separado.",
+    about_s5_p1:          "Dos modelos de detección de objetos independientes, entrenados con imágenes de cada fuente respectiva, generan detecciones por separado.",
     about_s5_p2:          "Los resultados se fusionan mediante Weighted Boxes Fusion (WBF) para producir una detección consolidada con mayor precisión que cualquier modelo individual. Las detecciones a menos de 500 m de un registro existente actualizan su fecha de confirmación en lugar de crear un nuevo registro.",
     about_s6_h:           "Actualización de datos",
-    about_s6_p:           "El pipeline de detección se ejecuta semanalmente desde una estación de trabajo dedicada. Los resultados se publican automáticamente en este tablero tras cada ejecución vía GitHub → Cloudflare Pages.",
+    about_s6_p:           "El pipeline de detección se ejecuta semanalmente desde una estación de trabajo dedicada. Los resultados se publican automáticamente en este tablero tras cada ejecución.",
   },
   en: {
     filter_header:        "Minimum confidence",
@@ -884,7 +894,7 @@ const TEXTS = {
     popup_coord:          "Coord.",
     popup_district:       "Area",
     lang_toggle:          "🇪🇸 Español",
-    last_update:          "Last batch",
+    last_update:          "Last updated",
     data_status:          "Status",
     status_demo:          "Demo — simulated data",
     subtitle:             "Clandestine airstrip detection · Peru",
@@ -933,7 +943,7 @@ const TEXTS = {
     about_title:          "GeoVigil Analytics",
     about_sub:            "Clandestine Airstrip Detection System · Peru",
     about_s1_h:           "What is GeoVigil Analytics?",
-    about_s1_p:           "A geospatial intelligence platform developed for the United Nations Office on Drugs and Crime (UNODC). It uses high-resolution satellite imagery and AI models to automatically detect clandestine airstrips in the Peruvian Amazon.",
+    about_s1_p:           "A geospatial intelligence platform that uses high-resolution satellite imagery and AI models to automatically detect clandestine airstrips in the Peruvian Amazon.",
     about_s2_h:           "Detection Status",
     about_s2_active:      "Active — Detected or re-detected within the past 3 months.",
     about_s2_unconf:      "Unconfirmed — No new detection in the past 3–6 months.",
@@ -947,10 +957,10 @@ const TEXTS = {
     about_s4_s2:          "10 m resolution · 5-day revisit · ≤ 20% cloud cover filter",
     about_s4_pl:          "4.77 m resolution · Monthly cloud-free mosaic · Tropical forest coverage",
     about_s5_h:           "Methodology",
-    about_s5_p1:          "Two independent YOLO models, each trained on imagery from its respective source, generate detections separately.",
+    about_s5_p1:          "Two independent object detection models, each trained on imagery from its respective source, generate detections separately.",
     about_s5_p2:          "Results are merged using Weighted Boxes Fusion (WBF) to produce a consolidated detection with higher accuracy than either model alone. Detections within 500 m of an existing record update its confirmation date rather than creating a new entry.",
     about_s6_h:           "Data Updates",
-    about_s6_p:           "The detection pipeline runs weekly from a dedicated workstation. Results are automatically published to this dashboard after each run via GitHub → Cloudflare Pages.",
+    about_s6_p:           "The detection pipeline runs weekly from a dedicated workstation. Results are automatically published to this dashboard after each run.",
   },
 };
 let lang = "es";
@@ -961,11 +971,15 @@ function applyLang() {
     const key = el.getAttribute("data-i18n");
     if (t[key] !== undefined) el.textContent = t[key];
   });
-  // Settings modal dynamic labels
-  const btnLangS = document.getElementById("btn-lang-settings");
-  if (btnLangS) btnLangS.textContent = t.lang_toggle;
-  const btnTileS = document.getElementById("btn-tile-settings");
-  if (btnTileS) btnTileS.textContent = currentTile === "satellite" ? (lang === "es" ? "🛰 Satélite" : "🛰 Satellite") : (lang === "es" ? "🗺 Callejero" : "🗺 Street");
+  // Settings lang toggle group
+  document.getElementById("btn-lang-es")?.classList.toggle("active", lang === "es");
+  document.getElementById("btn-lang-en")?.classList.toggle("active", lang === "en");
+  // Settings tile toggle labels (language-aware)
+  const tileLabels = { satellite: lang === "es" ? "🛰 Satélite" : "🛰 Satellite", street: lang === "es" ? "🗺 Calles" : "🗺 Street" };
+  const satBtn = document.getElementById("btn-tile-satellite");
+  const strBtn = document.getElementById("btn-tile-street");
+  if (satBtn) satBtn.textContent = tileLabels.satellite;
+  if (strBtn) strBtn.textContent = tileLabels.street;
   // About close button
   const abClose = document.querySelector(".about-close");
   if (abClose) abClose.textContent = lang === "es" ? "✕ Cerrar" : "✕ Close";
@@ -978,7 +992,8 @@ function applyLang() {
   updateZoomBtn();
   if (locationMarker) locationMarker.setTooltipContent(`📍 ${TEXTS[lang].my_location}`);
 }
-function toggleLang() { lang = lang === "es" ? "en" : "es"; applyLang(); }
+function setLang(l) { lang = l; applyLang(); }
+function toggleLang() { setLang(lang === "es" ? "en" : "es"); }
 
 // ── Detection data (loaded from detections.json) ───────────────────────────
 let DETECTIONS = [];
@@ -991,7 +1006,8 @@ function tierColor(conf) {
 }
 
 // ── Map ────────────────────────────────────────────────────────────────────
-const map = L.map("map", { zoomControl: true, tap: true, renderer: L.svg({ padding: 1.0 }) }).setView([-9.19, -75.0], 6);
+const map = L.map("map", { zoomControl: false, tap: true, renderer: L.svg({ padding: 1.0 }) }).setView([-9.19, -75.0], 6);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 const TILES = {
   satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
     attribution: '© <a href="https://www.esri.com">Esri</a>', maxZoom: 19,
@@ -1003,18 +1019,15 @@ const TILES = {
 TILES.satellite.addTo(map);
 let currentTile = "satellite";
 
-function toggleMapTile() {
-  const btn = document.getElementById("btn-tile-settings");
-  if (currentTile === "satellite") {
-    map.removeLayer(TILES.satellite); TILES.street.addTo(map);
-    currentTile = "street";
-    if (btn) btn.textContent = lang === "es" ? "🗺 Callejero" : "🗺 Street";
-  } else {
-    map.removeLayer(TILES.street); TILES.satellite.addTo(map);
-    currentTile = "satellite";
-    if (btn) btn.textContent = lang === "es" ? "🛰 Satélite" : "🛰 Satellite";
-  }
+function setTile(mode) {
+  if (mode === currentTile) return;
+  map.removeLayer(TILES[currentTile]);
+  TILES[mode].addTo(map);
+  currentTile = mode;
+  document.getElementById("btn-tile-satellite")?.classList.toggle("active", mode === "satellite");
+  document.getElementById("btn-tile-street")?.classList.toggle("active", mode === "street");
 }
+function toggleMapTile() { setTile(currentTile === "satellite" ? "street" : "satellite"); }
 
 // ── Zoom toggle control ────────────────────────────────────────────────────
 const DETAIL_ZOOM  = 16;
@@ -1111,7 +1124,7 @@ const RoadControl = L.Control.extend({
 const BorderControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd() {
-    const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl active');
+    const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
     const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
     btn.id = 'btn-borders';
     btn.innerHTML = BORDER_SVG + '<span id="border-btn-label" class="ctrl-label"></span>';
@@ -1124,10 +1137,11 @@ const BorderControl = L.Control.extend({
 const SettingsControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd() {
-    const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl');
+    const wrap = L.DomUtil.create('div', 'leaflet-bar map-ctrl map-ctrl-settings');
     const btn  = L.DomUtil.create('button', 'map-ctrl-btn', wrap);
     btn.id = 'btn-settings-map';
-    btn.innerHTML = GEAR_SVG + '<span id="settings-btn-label" class="ctrl-label"></span>';
+    btn.title = 'Settings / Configuración';
+    btn.innerHTML = GEAR_SVG;
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btn, 'click', () => toggleSettings());
     return wrap;
@@ -1152,11 +1166,9 @@ function updateZoomBtn() {
   if (roadLbl) roadLbl.textContent = t.roads_label;
   const borderLbl  = document.getElementById('border-btn-label');
   if (borderLbl) borderLbl.textContent = t.borders_label;
-  const settLbl    = document.getElementById('settings-btn-label');
-  if (settLbl) settLbl.textContent = t.btn_settings.replace('⚙ ', '');
-  // Equalize widths of all map-ctrl containers to the widest one
+  // Equalize widths of togglable map-ctrl containers (exclude icon-only settings)
   requestAnimationFrame(() => {
-    const ctrls = document.querySelectorAll('.map-ctrl');
+    const ctrls = document.querySelectorAll('.map-ctrl:not(.map-ctrl-settings)');
     ctrls.forEach(el => el.style.width = '');
     const max = Math.max(...[...ctrls].map(el => el.getBoundingClientRect().width));
     ctrls.forEach(el => el.style.width = max + 'px');
@@ -1756,7 +1768,7 @@ function toggleAbout() {
 }
 
 // ── Borders toggle ────────────────────────────────────────────────────────
-let bordersVisible = true;
+let bordersVisible = false;
 let borderLayer    = null;
 let borderGeoCache = null;
 const BORDER_GEO_URL = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson';
@@ -1861,11 +1873,7 @@ document.getElementById("sb-conf-val").textContent = "50";
 updateConfSliderFill(50);
 updateZoomBtn();
 
-// Load country borders (default ON)
-fetch(BORDER_GEO_URL)
-  .then(r => r.ok ? r.json() : Promise.reject(r.status))
-  .then(data => { borderGeoCache = data; renderBorderLayer(); })
-  .catch(() => {});
+// Borders: default OFF (user toggles via BorderControl)
 
 fetch('./data/detections.json')
   .then(r => r.json())
