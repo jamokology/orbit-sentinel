@@ -27,7 +27,7 @@ Satellite Imagery (Sentinel-2 + Planet NICFI)
   Cloudflare Pages (auto-deploy)
         │
         ▼
-  Web Dashboard (Streamlit)
+  Web Dashboard (Vanilla JS + Leaflet)
 ```
 
 ---
