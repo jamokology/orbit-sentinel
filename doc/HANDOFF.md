@@ -38,11 +38,13 @@
 - Output Formatの`source`フィールド値（`"Ensemble (Sentinel-2 + Planet)"`）の要否を再検討
 - `confidence`フィールドの意味（NICFI検出のモデル信頼度 と Sentinel単独検出の可変信頼度で性質が異なる点）を明記するか検討
 - **GFWを第3の検出ソースとして追加**（Satellite Imagery Sources節、Models節、Output Formatの`source`フィールド値に`"GFW"`を追加）
+- **Sentinel-1（SAR）をSentinel-2変化検出の追加特徴量として記載**（Satellite Imagery Sources節にSentinel-1バックスキャッター値の取得を追加。独立モデルではない旨を明記）
 
 ### 2. NDVI変化検出ロジックの実装
 - 出力形式・候補フィルタ条件・構築フロー（日付例つき）は確定済み（CONCEPT_NOTE.md「Sentinel-2変化検出の出力形式と候補フィルタ」参照）
 - 残タスク：対象範囲（ペルー全土 or 試験的に一部地域）、各フィルタの初期パラメータ（NDVI閾値、アスペクト比閾値、直線性の許容残差、最小長さ）
 - 直線性・最小長さ・アスペクト比の実装（`skimage.measure.regionprops`, `skimage.morphology.skeletonize`等を想定）
+- **Sentinel-1特徴量の統合（追加・2026-07-01）：** 各候補地点・日時に対応するSentinel-1後方散乱値（バックスキャッター強度低下）を取得し、ステップ2データでNDVIマージンとの予測力向上を統計検証。相関確認できればGFWと同じロジスティック回帰の枠組みで統合、できなければメタデータ保持のみ（CONCEPT_NOTE.md「Sentinel-1（SAR）を単独モデルでなく変化検出の特徴量として統合」参照）
 
 ### 3. 既存Faster-RCNNモデルでの推論バッチ実行（構築フロー ステップ3a）
 - `data/original_files/illegal_runway_detection_training.py` のモデル構造を参照
@@ -56,7 +58,7 @@
 
 ### 5. スタッフ確認フローの準備（レビューサイトは構築済み、`review/README.md`参照）
 - レビューサイト（`review/`）は稼働中。現状はダミー画像のみ投入済みなので、実データのバッチを`py/pipeline/upload_candidates.py`で投入する
-- ステップ2（計700枚：Sentinel-2候補500＋GFW差分100＋Sentinel-2単独100）とステップ3（計1000枚：既存モデル検出500＋NICFI確認500）、合計1700枚を順次投入
+- ステップ2（計700枚：Sentinel-2候補500＋GFW差分100＋Sentinel-2単独100）とステップ3（計1834枚：3a既存モデル検出500＋3b NICFI確認500＋3cマルチテンポラル834目安）、合計2534枚を順次投入
 - 各バッチのsource値を`sentinel_candidate`/`existing_model`/`sentinel_triggered_nicfi`に加え、GFW関連の値（例：`gfw_diff`/`sentinel_only`）を追加する必要あり（`review/schema.sql`のCHECK制約はないため追加は容易だが、集計ページ・アップロードスクリプトのsource一覧を更新すること）
 - ステップ2aの正誤結果は、TP変化量分布から99.9%信頼度で閾値を外挿決定するために使う
 - ステップ3bの正誤結果は、2aの500枚とプール（計1000枚）して99.9%信頼度を再計算し、かつ可変信頼度の較正曲線を作るために使う（CONCEPT_NOTE.md「構築フロー」参照）。パラメータ再調整は1回で打ち切り、反復しない
@@ -67,7 +69,7 @@
 - Candidateデータ（レビューサイトの`candidates`テーブル含む）への紐付け方法を設計
 
 ### 7. YOLO再学習
-- 178枚＋確認済み陽性・陰性（既存モデル500＋NICFIトリガー確認500）を合わせてYOLOデータセットを構築（計1178枚）
+- 178枚＋確認済み陽性・陰性（既存モデル500＋NICFIトリガー確認500＋マルチテンポラル3c 834目安）を合わせてYOLOデータセットを構築（計2012枚、目安）
 - 3b由来サンプルには「Sentinelトリガー由来」タグを付与（信頼度算出用ではなく将来のトレーサビリティ目的）
 - COCO→YOLO形式変換が必要（`labelme2coco_ada.py` がCOCO変換部分の参考になる）
 - NIRバンド込みで学習するかどうか要検討（CONCEPT_NOTE.md「データセット拡充の方針」参照、4バンド画像を活かす案）
