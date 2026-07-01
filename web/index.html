@@ -759,8 +759,8 @@
     <div class="about-section">
       <h2 data-i18n="about_s2_h">Estados de detección</h2>
       <ul class="about-status-list">
-        <li><span class="dot" style="background:#3fb950;width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></span><span data-i18n="about_s2_active">Activo — Detectado o redetectado en los últimos 3 meses.</span></li>
-        <li><span class="dot" style="background:#d29922;width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></span><span data-i18n="about_s2_unconf">No confirmado — Sin nueva detección en los últimos 3–6 meses.</span></li>
+        <li><span class="dot" style="background:#3fb950;width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></span><span data-i18n="about_s2_active">Activo — Confirmado por Planet NICFI en los últimos 3 meses.</span></li>
+        <li><span class="dot" style="background:#d29922;width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></span><span data-i18n="about_s2_unconf">No confirmado — La confirmación de Planet NICFI tiene entre 3 y 6 meses, o solo Sentinel-2 ha detectado la ubicación en los últimos 6 meses.</span></li>
         <li><span class="dot" style="background:#555;width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></span><span data-i18n="about_s2_inactive">Inactivo — Sin detección durante más de 6 meses. Oculto en el mapa.</span></li>
       </ul>
     </div>
@@ -785,8 +785,8 @@
 
     <div class="about-section">
       <h2 data-i18n="about_s5_h">Metodología</h2>
-      <p data-i18n="about_s5_p1">Planet NICFI es la única fuente que confirma una pista mediante clasificación de forma (modelo de IA). Sentinel-2 solo detecta cambios de vegetación (NDVI) como alerta temprana, sin analizar la forma del objeto.</p>
-      <p data-i18n="about_s5_p2">Los resultados no se fusionan numéricamente (no se usa Weighted Boxes Fusion): la confirmación de Planet NICFI siempre prevalece sobre una alerta de Sentinel-2 en la misma ubicación. Las detecciones a menos de 500 m de un registro existente actualizan su fecha de confirmación en lugar de crear un nuevo registro.</p>
+      <p data-i18n="about_s5_p1">Planet NICFI confirma una pista analizando su forma con un modelo de IA. Sentinel-2 detecta candidatos probables a partir de cambios de vegetación, aplicando filtros básicos de forma (alargamiento, rectitud, longitud mínima), pero su resolución no permite confirmar la forma por sí solo.</p>
+      <p data-i18n="about_s5_p2">La confirmación de Planet NICFI siempre prevalece sobre una alerta de Sentinel-2 en la misma ubicación. Las detecciones a menos de 500 m de un registro existente actualizan su fecha de confirmación en lugar de crear un nuevo registro.</p>
     </div>
 
     <div class="about-section">
@@ -885,8 +885,8 @@ const TEXTS = {
     about_s1_h:           "¿Qué es GeoVigil Analytics?",
     about_s1_p:           "Plataforma de inteligencia geoespacial que utiliza imágenes satelitales de alta resolución y modelos de inteligencia artificial para detectar automáticamente pistas de aterrizaje clandestinas en la Amazonía peruana.",
     about_s2_h:           "Estados de detección",
-    about_s2_active:      "Activo — Detectado o redetectado en los últimos 3 meses.",
-    about_s2_unconf:      "No confirmado — Sin nueva detección en los últimos 3–6 meses.",
+    about_s2_active:      "Activo — Confirmado por Planet NICFI en los últimos 3 meses.",
+    about_s2_unconf:      "No confirmado — La confirmación de Planet NICFI tiene entre 3 y 6 meses, o solo Sentinel-2 ha detectado la ubicación en los últimos 6 meses.",
     about_s2_inactive:    "Inactivo — Sin detección durante más de 6 meses. Oculto en el mapa, pero conservado en el historial.",
     about_s3_h:           "Puntuación de confianza",
     about_s3_p:           "El significado de la puntuación depende de la fuente: para Planet NICFI, es la confianza del modelo de IA en la forma detectada (pista confirmada). Para Sentinel-2, es una probabilidad calibrada de que un cambio NDVI corresponda a una pista (alerta temprana, no confirmada).",
@@ -897,8 +897,8 @@ const TEXTS = {
     about_s4_s2:          "Resolución 10 m · Revisita cada 5 días · Filtrado ≤ 20% de nubosidad",
     about_s4_pl:          "Resolución 4.77 m · Mosaico mensual libre de nubes · Cobertura de bosques tropicales",
     about_s5_h:           "Metodología",
-    about_s5_p1:          "Planet NICFI es la única fuente que confirma una pista mediante clasificación de forma (modelo de IA). Sentinel-2 solo detecta cambios de vegetación (NDVI) como alerta temprana, sin analizar la forma del objeto.",
-    about_s5_p2:          "Los resultados no se fusionan numéricamente (no se usa Weighted Boxes Fusion): la confirmación de Planet NICFI siempre prevalece sobre una alerta de Sentinel-2 en la misma ubicación. Las detecciones a menos de 500 m de un registro existente actualizan su fecha de confirmación en lugar de crear un nuevo registro.",
+    about_s5_p1:          "Planet NICFI confirma una pista analizando su forma con un modelo de IA. Sentinel-2 detecta candidatos probables a partir de cambios de vegetación, aplicando filtros básicos de forma (alargamiento, rectitud, longitud mínima), pero su resolución no permite confirmar la forma por sí solo.",
+    about_s5_p2:          "La confirmación de Planet NICFI siempre prevalece sobre una alerta de Sentinel-2 en la misma ubicación. Las detecciones a menos de 500 m de un registro existente actualizan su fecha de confirmación en lugar de crear un nuevo registro.",
     about_s6_h:           "Actualización de datos",
     about_s6_p:           "El pipeline de detección se ejecuta semanalmente desde una estación de trabajo dedicada. Los resultados se publican automáticamente en este tablero tras cada ejecución.",
   },
@@ -970,8 +970,8 @@ const TEXTS = {
     about_s1_h:           "What is GeoVigil Analytics?",
     about_s1_p:           "A geospatial intelligence platform that uses high-resolution satellite imagery and AI models to automatically detect clandestine airstrips in the Peruvian Amazon.",
     about_s2_h:           "Detection Status",
-    about_s2_active:      "Active — Detected or re-detected within the past 3 months.",
-    about_s2_unconf:      "Unconfirmed — No new detection in the past 3–6 months.",
+    about_s2_active:      "Active — Confirmed by Planet NICFI within the past 3 months.",
+    about_s2_unconf:      "Unconfirmed — Planet NICFI's confirmation is 3–6 months old, or only Sentinel-2 has flagged this location within the past 6 months.",
     about_s2_inactive:    "Inactive — No detection for over 6 months. Hidden on the map but retained in the historical record.",
     about_s3_h:           "Confidence Score",
     about_s3_p:           "What the score means depends on the source: for Planet NICFI, it's the AI model's confidence in the detected shape (confirmed airstrip). For Sentinel-2, it's a calibrated probability that an NDVI change corresponds to an airstrip (early warning, not confirmed).",
@@ -982,8 +982,8 @@ const TEXTS = {
     about_s4_s2:          "10 m resolution · 5-day revisit · ≤ 20% cloud cover filter",
     about_s4_pl:          "4.77 m resolution · Monthly cloud-free mosaic · Tropical forest coverage",
     about_s5_h:           "Methodology",
-    about_s5_p1:          "Planet NICFI is the only source that confirms an airstrip via shape classification (AI model). Sentinel-2 only detects vegetation change (NDVI) as an early warning, without analyzing the object's shape.",
-    about_s5_p2:          "Results are never numerically merged (no Weighted Boxes Fusion): a Planet NICFI confirmation always takes precedence over a Sentinel-2 alert at the same location. Detections within 500 m of an existing record update its confirmation date rather than creating a new entry.",
+    about_s5_p1:          "Planet NICFI confirms an airstrip by analyzing its shape with an AI model. Sentinel-2 flags likely candidates from vegetation change, applying basic shape filters (elongation, straightness, minimum length), but its resolution isn't fine enough to confirm shape on its own.",
+    about_s5_p2:          "A Planet NICFI confirmation always takes precedence over a Sentinel-2 alert at the same location. Detections within 500 m of an existing record update its confirmation date rather than creating a new entry.",
     about_s6_h:           "Data Updates",
     about_s6_p:           "The detection pipeline runs weekly from a dedicated workstation. Results are automatically published to this dashboard after each run.",
   },
