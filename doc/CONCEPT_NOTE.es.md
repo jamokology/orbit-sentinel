@@ -148,6 +148,15 @@ Los datos de Sentinel-1 en sí están disponibles gratuitamente bajo CC BY 4.0, 
 
 **Tema a considerar en el futuro (capa propia de Sentinel-1):** si en el futuro se pudiera construir una capa propia que aplique filtros de forma de pista a Sentinel-1, se lograría simultáneamente "no verse afectado por nubes" y "estar optimizada para la forma de la pista", lo que podría superar en precisión tanto a Sentinel-2 (optimizado para forma pero vulnerable a las nubes) como a GFW (resistente a nubes pero de detección de deforestación genérica) actuales. Sin embargo, dado que el reconocimiento de forma en SAR es más difícil que en óptico debido al ruido speckle, se estima que la necesidad de una estructura de dos etapas con confirmación final por NICFI se mantendrá en el futuro. No se abordará en esta fase; se deja registrado como candidato de expansión para un ciclo de reentrenamiento futuro.
 
+### Integración de Sentinel-1 (SAR) como característica de la detección de cambios, no como modelo independiente (añadido, 2026-07-01)
+
+Propuesta de un miembro del equipo: la sección de una pista es un suelo desnudo y liso, por lo que en SAR presenta una retrodispersión débil y aparece oscura. Esta característica se considera integrar no como "modelo de detección independiente", sino como **característica adicional de la detección de cambios de Sentinel-2**. El motivo es el mismo que en el caso de GFW (a 10 m de resolución, Sentinel-1 por sí solo tiene dificultades para una clasificación independiente por forma, y su rol se superpone con el de RADD ya existente), pero el valor de "aparecer oscuro" en sí podría correlacionarse con el margen de NDVI existente, por lo que sería un desperdicio descartarlo como información.
+
+- Se obtiene el valor de retrodispersión de Sentinel-1 (caída de intensidad de backscatter) correspondiente a cada candidato y fecha de Sentinel-2, como característica adicional
+- Una vez reunidas las etiquetas verdadero/falso del Paso 2, se verifica estadísticamente si mejora el poder predictivo respecto al margen NDVI por sí solo
+- Si se confirma correlación, se extiende al mismo marco que en el caso de GFW (por ejemplo, regresión logística de `P(TP | margen de Sentinel-2, característica SAR)`), combinándola con el margen NDVI en un modelo de calibración conjunto
+- Si no se confirma correlación, se procede igual que con los datos de pendiente/distancia: se conserva solo como metadato, sin incorporarla al cálculo de confianza
+
 ### Datos de pendiente (Slope) y distancia a ríos/poblados (conservados como características adicionales)
 
 Reglas empíricas del personal de campo:
@@ -188,6 +197,17 @@ Reorganizado en 2 pasos según su objetivo. El Paso 2 es "calibración de la pro
 - 178 imágenes originales + 500 de 3a + 500 de 3b = **1178 imágenes en total** para el nuevo entrenamiento de YOLO
 - Las muestras provenientes de 3b se etiquetan como "originadas por disparador de Sentinel" (no para el cálculo de confianza, sino con fines de trazabilidad para futuras reevaluaciones de datos y ciclos de reentrenamiento)
 
+**Paso 3c: ampliación multitemporal (añadido, 2026-07-01)**
+
+Objetivo: las ubicaciones de las 178 imágenes originales + las ubicaciones confirmadas como TRUE en el paso 2a (la cantidad exacta se determinará tras completar 2a; se estima del orden de 100 ubicaciones). Para estas ubicaciones **cuyo verdadero positivo ya está confirmado**, se obtienen mosaicos NICFI adicionales de otras fechas en las mismas coordenadas para ampliar los datos de entrenamiento de YOLO.
+
+- **Límite de hasta 4 fechas adicionales por ubicación (es decir, hasta 5 veces el volumen).** No se trata de multiplicar mecánicamente por 5; se priorizan fechas con condiciones de estación/nubosidad claramente distintas, sin forzar fechas similares solo para completar el cupo
+- **La división train/val se realiza por ubicación.** Si las imágenes de múltiples fechas de la misma ubicación se distribuyen aleatoriamente entre train y val, en la práctica se estaría usando el mismo lugar tanto para entrenar como para validar, contaminando la evaluación de la capacidad de generalización
+- **Limitado a fechas en las que la pista sea visible.** No se incluyen como positivos las fechas anteriores a la construcción ni las posteriores a que la vegetación haya cubierto el sitio hasta hacerlo indistinguible
+- Dado que el personal ya confirmó el verdadero positivo de la ubicación, cada imagen adicional no requiere una verificación completa nueva, sino solo una comprobación ligera de "¿la pista es visible en esta fecha?"
+
+**Por qué 5 veces no es un valor absoluto:** los mosaicos de meses consecutivos suelen tener casi la misma forma, orientación y patrón de tala circundante, por lo que a menudo no aportan diversidad real de información. Multiplicar desde la misma ubicación aumenta el "número aparente de muestras", pero no necesariamente la "diversidad geográfica y situacional"; por eso se establece un límite superior, pero la cantidad real se ajusta de forma flexible según cuántas fechas verdaderamente diversas estén disponibles.
+
 **Paso 4: recálculo de parámetros y calibración de la confianza variable**
 - Se agrupan las 500 imágenes de 2a y las 500 de 3b (1000 en total, con confirmación NICFI, tratadas con el mismo nivel de fiabilidad de etiqueta) y se recalcula el umbral de Sentinel-2 con 99.9% de confianza. Es posible que resulte más laxo que con 2a por sí sola
 - Se ajusta una curva de calibración monótona (por ejemplo, regresión isotónica) entre el "margen respecto al umbral" (principalmente magnitud de cambio NDVI) de cada candidato y su etiqueta verdadero/falso, permitiendo calcular una confianza variable por detección de Sentinel-2 (no se usa un valor fijo de precisión promedio)
@@ -195,7 +215,7 @@ Reorganizado en 2 pasos según su objetivo. El Paso 2 es "calibración de la pro
 - Se comparan 2a (solapamiento con GFW) y 2c para verificar si el boost de confianza en detección simultánea Sentinel-2×GFW puede justificarse estadísticamente (por ejemplo, mediante regresión logística de `P(TP | margen de Sentinel-2, características de GFW)`). Si no puede justificarse, no se adopta el boost
 - **La iteración se limita a una sola vez:** no se repetirá el proceso de relajar aún más el umbral y volver a recolectar candidatos, ya que la relación costo-beneficio se deteriora rápidamente. La próxima revisión queda a cargo del ciclo de reentrenamiento dentro de varios años
 
-**Total de imágenes a revisar: Paso 2 (700) + Paso 3 (1000) = 1700 imágenes**
+**Total de imágenes a revisar: Paso 2 (700) + Paso 3 (1000) = 1700 imágenes.** La ampliación multitemporal del Paso 3c corresponde a imágenes adicionales de ubicaciones cuyo verdadero positivo ya está confirmado, por lo que se contabiliza aparte de las 1700 anteriores (comprobación ligera de visibilidad, no verificación completa)
 
 ## Temas pendientes
 
@@ -207,4 +227,5 @@ Reorganizado en 2 pasos según su objetivo. El Paso 2 es "calibración de la pro
 - Modelo de combinación para el boost de confianza Sentinel-2×GFW (regresión logística, etc.): método de implementación concreto y decisión final sobre su necesidad
 - Método de obtención de los datos de pendiente y distancia a ríos/poblados (fuente y formato de datos) y forma de vincularlos a los datos de Candidate
 - Método concreto de incorporación a la lógica de cálculo de confianza, en caso de confirmarse correlación estadística entre los datos de pendiente/distancia y las etiquetas verdadero/falso
-- **(Tema futuro, no abordado en esta fase) Capa propia de detección de pistas mediante Sentinel-1 (SAR)** — ver la sección "Integración con GFW (GLAD/RADD)". Si en el futuro se pudiera construir una capa propia no afectada por nubes y optimizada para la forma de las pistas, habría margen de mejora en precisión, pero por la especialización y el costo de implementación del procesamiento de ruido speckle propio de SAR, no se incluye en el alcance actual
+- **(Tema futuro, no abordado en esta fase) Capa propia de detección de pistas mediante Sentinel-1 (SAR)** — ver la sección "Integración con GFW (GLAD/RADD)". Si en el futuro se pudiera construir una capa propia no afectada por nubes y optimizada para la forma de las pistas, habría margen de mejora en precisión, pero por la especialización y el costo de implementación del procesamiento de ruido speckle propio de SAR, no se incluye en el alcance actual (aparte de la capa independiente, la "integración de Sentinel-1 como característica de la detección de cambios de Sentinel-2" descrita arriba sí forma parte del alcance actual)
+- **(Idea futura, no abordada en esta fase) Detección de cultivos/campos de coca (modelo predictivo) usando las carreteras como elemento clave** — existe un patrón de cambio de cobertura terrestre en el que la deforestación avanza en la dirección en que se extienden las carreteras y se convierte en cultivos de coca; se espera una relación similar con la aparición de pistas clandestinas. La detección de carreteras en sí tiene una dificultad alta (estructuras lineales, área objetivo muy extensa, muchas fuentes de ruido como ríos, senderos de fauna y tierras de cultivo abandonadas), por lo que no es viable implementarla de inmediato; se deja registrada como candidato de expansión futura
